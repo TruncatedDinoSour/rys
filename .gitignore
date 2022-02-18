@@ -1,0 +1,7 @@
+*.asm
+*.o
+asm/
+.mypy_cache/
+.pytype/
+built_tests/
+

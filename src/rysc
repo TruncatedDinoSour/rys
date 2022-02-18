@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+"""rys"""
+
+import os
+import sys
+import warnings
+from dataclasses import dataclass
+from enum import Enum, auto
+from typing import Any, Generator, Optional
+
+warnings.filterwarnings("error", category=Warning)
+
+EXIT_OK: int = 0
+EXIT_ERR: int = 1
+
+__version__ = "0.1"
+__author__ = "Ari Archer <truncateddinosour@gmail.com>"
+
+
+class TokenType(Enum):
+    PUSH_INT = auto()
+    PUSH_STR = auto()
+    DROP = auto()
+    INSTRUCTION = auto()
+
+
+class InstructionType(Enum):
+    INSTRUCTION_EXIT = auto()
+    INSTRUCTION_WRITEFD = auto()
+
+
+class RysType(Enum):
+    STR = auto()
+    INT = auto()
+
+
+@dataclass
+class Token:
+    t_type: TokenType
+    t_pos: tuple[int, int, str]  # line, column, file
+    t_value: Any
+
+
+def msg(msg: str, header: str = "ERROR") -> int:
+    """Print message and return error exit code"""
+
+    sys.stderr.write(f" ** {header}{': ' if msg[0] != ':' else ''}{msg}\n")
+    return EXIT_ERR
+
+
+def tk_die(message: str, token: Token) -> None:
+    sys.exit(
+        msg(f":{token.t_pos[2]}:{token.t_pos[0] or 1}:{token.t_pos[1] or 1}: {message}")
+    )
+
+
+assert len(TokenType) == 4, "Unhandled token types in AST generation"
+assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
+assert len(RysType) == 2, "Unhandled types in AST generation"
+
+
+def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
+    msg("Generating AST...", "INFO")
+
+    config: dict[str, Any] = {}
+    token_ctx: set[str] = set()
+    tmp_stack: list[Any] = []
+
+    def new_token(token_type: TokenType, value: Any) -> Token:
+        return Token(
+            token_type,
+            (config.get("line") or 1, config.get("column") or 1, file_path),
+            value,
+        )
+
+    def die(message: str) -> None:
+        sys.exit(
+            msg(
+                f":{file_path}:{config.get('line') or 1}:{config.get('column') or 1}: {message}"
+            )
+        )
+
+    with open(file_path, "r") as rys_code:
+        for lidx, line in enumerate(rys_code, 1):
+            if "in.literal" in token_ctx:
+                die(
+                    'No closing double quote (") to close string',
+                )
+
+            config["line"] = lidx
+
+            for cidx, token in enumerate(line.split(), 1):
+                config["column"] = cidx
+
+                # String parsing sux
+                if "in.literal" in token_ctx:
+                    if not token.endswith('"') or token.endswith('\\"'):
+                        tmp_stack.append(token)
+                        continue
+                elif token == '"' and "in.literal" not in token_ctx:
+                    token_ctx.add("in.literal")
+                    continue
+
+                if (
+                    token.startswith('"')
+                    and token.endswith('"')
+                    and not token.endswith('\\"')
+                    and "in.literal" not in token_ctx
+                ):
+                    yield new_token(TokenType.PUSH_STR, token[1:-1])
+                    continue
+                elif token.endswith('"') and not token.endswith('\\"'):
+                    tmp_stack.append(token.removesuffix('"'))
+
+                    full_str: str = " ".join(tmp_stack)
+
+                    yield new_token(TokenType.PUSH_STR, full_str)
+
+                    tmp_stack = []
+                    token_ctx.remove("in.literal")
+                    continue
+                elif token.startswith('"'):
+                    tmp_stack.append(token.removeprefix('"'))
+                    token_ctx.add("in.literal")
+                    continue
+
+                if token.startswith("--"):
+                    # Ignore comments and everything after in the same line
+                    break
+
+                if token.isnumeric():
+                    try:
+                        yield new_token(TokenType.PUSH_INT, int(token))
+                    except ValueError:
+                        die(f"Failed to convert {token!r} to number")
+                else:
+                    if token == "exit":
+                        yield new_token(
+                            TokenType.INSTRUCTION, InstructionType.INSTRUCTION_EXIT
+                        )
+                    elif token == "writefd":
+                        yield new_token(
+                            TokenType.INSTRUCTION, InstructionType.INSTRUCTION_WRITEFD
+                        )
+                    elif token == "drop":
+                        yield new_token(TokenType.DROP, None)
+                    else:
+                        die(f"Unknown token: {token!r}")
+
+            if "in.literal" in token_ctx:
+                die('No closing double quote (") to close string')
+
+
+assert (
+    len(TokenType) == 4
+), "Unhandled token types in nasm x86_64 linux assembly generation"
+assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
+assert len(RysType) == 2, "Unhandled types in assembly generation"
+
+
+def generate_x86_64_nasm_assembly_linux(
+    ast: Generator[Token, None, None],
+    full: bool = True,
+    start_iname: int = 0,
+    stack: Optional[list[tuple[Any, RysType]]] = None,
+    features: Optional[set[str]] = None,
+) -> Generator[tuple[str, int], None, None]:
+    """
+    API (index 1 of return)
+    -----------------------
+    0 -- assembly
+    1 -- data
+    """
+
+    msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
+
+    data_section: list[str] = []
+
+    tmp_stack: list[tuple[Any, RysType]] = stack or []
+
+    if full:
+        yield "BITS 64", 0
+        yield "segment .text", 0
+        yield "global _start", 0
+        yield "_start:", 0
+        yield "    mov rax, rys_stack_end", 0
+        yield "    mov [rys_stack_rsp], rax", 0
+
+    for token in ast:
+        # Ignore the raw (r"...") strings, I cannot stand unalignments
+        # ---------------------------------------------------------------------------
+        # Conversions with int(), str(), .. are there because some stuff might
+        #             be marked as a number where it's a string or something
+        # ---------------------------------------------------------------------------
+        # We need to simulate the stack at least a bit for some instructions
+
+        iname: str = (
+            f"{token.t_pos[0]}_{token.t_pos[1]}__{start_iname}_{token.t_type.value}"
+        )
+        start_iname += 1
+
+        if token.t_type == TokenType.PUSH_INT:
+            if token.t_value > 2 ** 64:
+                tk_die(
+                    f"Oveflow error: integer {token.t_value} does not fit into 64 bits",
+                    token,
+                )
+
+            yield f"int_{iname}:", 0
+            yield f"    mov rax, {token.t_value}", 0
+            yield r"    push rax", 0
+
+            tmp_stack.append((int(token.t_value), RysType.INT))
+        elif token.t_type == TokenType.PUSH_STR:
+            data_section.append(
+                f"addr_str_{iname}: db {','.join((str(ord(char)) for char in token.t_value.encode('raw-unicode-escape', errors='replace').decode('unicode-escape', errors='replace')))}"
+            )
+
+            yield f"str_{iname}:", 0
+            yield f"    mov rax, addr_str_{iname}", 0
+            yield r"    push rax", 0
+
+            tmp_stack.append((str(token.t_value), RysType.STR))
+        elif token.t_type == TokenType.INSTRUCTION:
+            if token.t_value == InstructionType.INSTRUCTION_EXIT:
+                if len(tmp_stack) < 1:
+                    tk_die("Exit code not supplied", token)
+
+                tmp_stack.pop()
+
+                yield f"inst_{iname}:", 0
+                yield "    mov rax, 60", 0
+                yield "    pop rdi", 0
+                yield "    syscall", 0
+            elif InstructionType.INSTRUCTION_WRITEFD:
+                if len(tmp_stack) < 2:
+                    tk_die("Not enough arguments for writefd", token)
+
+                fd = tmp_stack.pop()
+
+                if fd[1] != RysType.INT:
+                    tk_die(f"File descriptor is not a number: {fd[0]}", token)
+                elif fd[0] > 2048:
+                    tk_die(
+                        f"Linux cannot open more than 2048 file descriptors, so {fd[0]} will always fail",
+                        token,
+                    )
+                    # (1024) https://docs.oracle.com/cd/E19623-01/820-6168/file-descriptor-requirements.html
+                    # (2048) https://stackoverflow.com/a/28212496/17411100
+                    # NOTE: should I remove this check?..
+
+                fd_data = tmp_stack.pop()
+
+                if fd_data[1] != RysType.STR:
+                    tk_die(f"{fd_data[1]!r} is not a valid type for writefd", token)
+
+                fd_data_len = (
+                    len(fd_data[0]) - 1
+                )  # Without `- 1` it seems to be causing a leak(?)
+
+                yield f"inst_{iname}:", 0
+                yield r"    mov rax, 1", 0
+                yield r"    pop rdi", 0
+                yield r"    pop rsi", 0
+                yield f"    mov rdx, {fd_data_len}", 0
+                yield r"    syscall", 0
+
+                tmp_stack.append((fd_data_len, RysType.INT))
+                # https://man7.org/linux/man-pages/man2/write.2.html
+        elif token.t_type == TokenType.DROP:
+            if len(tmp_stack) < 2:
+                tk_die("Not enough arguments for drop", token)
+
+            drop_ammount = tmp_stack.pop()
+
+            if drop_ammount[1] != RysType.INT:
+                tk_die(
+                    f"{drop_ammount[0]!r} is not a valid ammount of items to drop",
+                    token,
+                )
+            elif drop_ammount[0] > len(tmp_stack):
+                tk_die("Cannot drop more elements than the stack itself", token)
+
+            yield f"drop_{iname}:", 0
+            for _ in range(drop_ammount[0]):
+                yield r"    pop rax", 0
+                tmp_stack.pop()
+
+    if tmp_stack:
+        msg(f"{len(tmp_stack)} items left on the stack:")
+
+        for item in tmp_stack:
+            msg(f"{item[0]!r}\t({item[1]})")
+
+        msg(f"did you miss: {len(tmp_stack)} drop ?")
+        sys.exit(1)
+
+    if data_section and full:
+        yield "segment .data", 0
+
+    for data in data_section:
+        yield data, 1
+
+    if full:
+        yield "segment .bss", 0
+        yield "rys_stack_rsp: resq 1", 0
+        yield "rys_stack_end:", 0
+
+
+def main() -> int:
+    """Entry/main function"""
+    if len(sys.argv) < 2:
+        return msg("Not sufficient ammount of arguments: <file>")
+
+    if not os.path.exists(sys.argv[1]):
+        return msg(f"File {sys.argv[1]!r} does not exist")
+
+    bin_name: str = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+    asm_name: str = bin_name + ".asm"
+    obj_name: str = bin_name + ".o"
+
+    asm: Generator[tuple[str, int], None, None] = generate_x86_64_nasm_assembly_linux(
+        rys_to_ast(sys.argv[1])
+    )
+
+    msg(f"Writing assembly to {asm_name}...", "INFO")
+    with open(asm_name, "w") as rys_asm:
+        for line, _ in asm:
+            rys_asm.write(line + "\n")
+
+    msg(f"Compiling {asm_name}...", "INFO")
+    os.system(f"nasm -w+error -felf64 {asm_name} -o {obj_name}")
+    os.system(
+        f"ld --require-defined=_start -nostdlib --no-pie -o {bin_name} {obj_name}"
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    assert main.__annotations__.get("return") is int, "main() should return an integer"
+    sys.exit(main())

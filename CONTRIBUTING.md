@@ -1,0 +1,6 @@
+- **DO NOT** commit to the python script, it will get removed
+- If you are adding a new editor or modifying already existing one:
+  - Add your configuration/syntax/... File to `/editor/` directory
+  - Add an entry to [README.md](/README.md) `Editor support` section
+- If you are editing any other scripts:
+  - Make sure they pass linting (for example shellcheck for shell and bash scripts)
