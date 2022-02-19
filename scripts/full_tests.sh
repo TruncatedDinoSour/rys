@@ -7,6 +7,11 @@ main() {
     read -r
 
     NOFAIL=1 TESTDIR=tests_fail ./scripts/tests.sh
+
+    printf '****** Press enter to start example testing ******'
+    read -r
+
+    TESTDIR=examples ./scripts/tests.sh
 }
 
 main "$@"
