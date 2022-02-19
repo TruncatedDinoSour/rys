@@ -366,7 +366,7 @@ def usage() -> int:
         f"    -o <filename>               -- [{'on' if '-o' in sys.argv[1:] else 'off'}] output binary",
         f"    -strip                      -- [{'on' if '-strip' in sys.argv else 'off'}] strip binary after compiling",
         f"    -quiet                      -- [{'on' if '-quiet' in sys.argv else 'off'}] run quietly",
-        f"    -verbose                    -- [{'on' if '-quiet' in sys.argv else 'off'}] add verbose flags to compilers",
+        f"    -verbose                    -- [{'on' if '-quiet' in sys.argv else 'off'}] print debug/verbose information",
         "",
         " ENV",
         "    RYS_LD_FLAGS                -- all linker flags",
