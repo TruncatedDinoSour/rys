@@ -8,6 +8,8 @@
 " and add in your .vimrc file the next line:
 " autocmd BufRead,BufNewFile *.rys set filetype=rys
 
+scriptencoding utf-8
+
 if exists("b:current_syntax")
     finish
 endif
