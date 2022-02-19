@@ -484,7 +484,7 @@ def main() -> int:
 
     bin_name: str = filename[1]
     asm_name: str = bin_name + ".asm"
-    obj_name: str = bin_name + ".o"
+    obj_name: str = bin_name
 
     asm: Generator[tuple[str, int], None, None]
     ast: Generator[Token, None, None] = type_check_ast(rys_to_ast(sys.argv[1]))
@@ -497,6 +497,8 @@ def main() -> int:
 
     if "format_linux_elf64_x86_64_nasm" in RYS_ARGS:
         asm = generate_x86_64_nasm_assembly_linux(ast)
+
+        obj_name += ".o"
 
         asmc = "nasm"
         linker = "ld"
