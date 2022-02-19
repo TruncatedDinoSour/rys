@@ -313,10 +313,10 @@ def generate_x86_64_nasm_assembly_linux(
         msg(f"{len(tmp_stack)} items left on the stack:")
 
         for item in tmp_stack:
-            msg(f"{item[0]!r}\t({item[1]})")
+            msg(f"{item[0]!r:50s}\t({type_to_str(item[1])})", "STACK")
 
-        msg(f"did you miss: {len(tmp_stack)} drop ?")
-        sys.exit(1)
+        msg(f"did you miss: {len(tmp_stack)} drop ?", "TIP")
+        sys.exit(EXIT_ERR)
 
     if data_section and full:
         yield "segment .data", 0
@@ -426,6 +426,9 @@ def type_check_ast(
             stack.append(RysType.STR)
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
+                if len(stack) < 1:
+                    tk_die("Exit code not supplied", token)
+
                 exit_code = stack.pop()
                 if exit_code != RysType.INT:
                     tk_die(
@@ -433,6 +436,9 @@ def type_check_ast(
                         token,
                     )
             elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
+                if len(stack) < 2:
+                    tk_die("Not enough arguments for writefd", token)
+
                 fd = stack.pop()
 
                 if fd != RysType.INT:
@@ -448,7 +454,12 @@ def type_check_ast(
                         f"writefd expected a string on the stack as the content, but got {type_to_str(string)}",
                         token,
                     )
+
+                stack.append(string)
         elif token.t_type == TokenType.DROP:
+            if len(stack) < 2:
+                tk_die("Not enough arguments for drop", token)
+
             drop_ammount = stack.pop()
 
             if drop_ammount != RysType.INT:

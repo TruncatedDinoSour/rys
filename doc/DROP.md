@@ -11,6 +11,7 @@ use
 For example `writefd` returns amount of bytes
 it will write (in compile time) and how much it successfully wrote
 in run time (refer to [write(2)](https://man7.org/linux/man-pages/man2/write.2.html))
+and the string type in type checking
 
 `drop` takes one argument: The amount of elements to drop from the stack (for example `3`)
 
