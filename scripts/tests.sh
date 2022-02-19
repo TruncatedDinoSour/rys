@@ -9,7 +9,7 @@ main() {
     cd built_tests
 
     for rys_test in ../tests/*; do
-        time ../src/rysc "$rys_test"
+        time ../src/rysc "$rys_test" -linux-elf64-x86_64-nasm "$@"
 
         {
             echo "TEST $rys_test"

@@ -12,6 +12,7 @@ warnings.filterwarnings("error", category=Warning)
 
 EXIT_OK: int = 0
 EXIT_ERR: int = 1
+RYS_ARGS: set[str] = set()
 
 __version__ = "0.1"
 __author__ = "Ari Archer <truncateddinosour@gmail.com>"
@@ -183,8 +184,7 @@ def generate_x86_64_nasm_assembly_linux(
         yield "segment .text", 0
         yield "global _start", 0
         yield "_start:", 0
-        yield "    mov rax, rys_stack_end", 0
-        yield "    mov [rys_stack_rsp], rax", 0
+        yield "    lea rax, [rel rys_stack_end]", 0
 
     for token in ast:
         # Ignore the raw (r"...") strings, I cannot stand unalignments
@@ -303,25 +303,134 @@ def generate_x86_64_nasm_assembly_linux(
 
     if full:
         yield "segment .bss", 0
-        yield "rys_stack_rsp: resq 1", 0
         yield "rys_stack_end:", 0
+
+
+def usage() -> int:
+    help_text = [
+        f" Usage: {{ENV}}={{VAL}}... {sys.argv[0]} <file | -help> -flag(s)",
+        "",
+        " FLAGS",
+        f"    -help                       -- [{'on' if '-help' in sys.argv else 'off'}] print help",
+        f"    -debug                      -- [{'on' if '-debug' in sys.argv else 'off'}] use debug build flags",
+        f"    -release                    -- [{'on' if '-release' in sys.argv else 'off'}] use release/production build flags",
+        f"    -linux-elf64-x86_64-nasm    -- [{'on' if '-linux-elf64-x86_64-nasm' in sys.argv else 'off'}] generate linux elf64 x86_64 binary and assembly",
+        f"    -run                        -- [{'on' if '-run' in sys.argv else 'off'}] run binary after compilation",
+        f"    --                          -- [{'on' if '--' in sys.argv[1:] else 'off'}] treat next argument as filename",
+        f"    -o <filename>               -- [{'on' if '-o' in sys.argv[1:] else 'off'}] output binary",
+        f"    -strip                      -- [{'on' if '-run' in sys.argv else 'off'}] strip binary after compiling",
+        "",
+        " ENV",
+        "    RYS_LD_FLAGS                -- all linker flags",
+        "    RYS_USER_LD_FLAGS           -- extra linker flags to add on top of LD flags",
+        "    RYS_ASM_FLAGS               -- all assembly flags",
+        "    RYS_USER_ASM_FLAGS          -- extra assembly flags to add on top of ASM flags",
+        "    RYS_OFLAGS                  -- flags to pass to output binary if -run is passed",
+    ]
+
+    for line in help_text:
+        sys.stderr.write(line + "\n")
+
+    return EXIT_ERR
+
+
+def parse_args() -> tuple[str, str]:
+    """Returns the filename and output binary name"""
+
+    if sys.argv[1] == "-help":
+        usage()
+        sys.exit(EXIT_OK)
+
+    ctx: set = set()
+    filename: str = sys.argv[1]
+    output: str = ""
+
+    for arg in sys.argv[1:]:
+        if "literal" in ctx:
+            filename = arg
+            continue
+        elif "output" in ctx:
+            output = arg
+            continue
+
+        if arg == "-help":
+            usage()
+            sys.exit()
+        elif arg == "-debug":
+            RYS_ARGS.add("debug_flags")
+        elif arg == "-release":
+            RYS_ARGS.add("release_flags")
+        elif arg == "-linux-elf64-x86_64-nasm":
+            RYS_ARGS.add("format_linux_elf64_x86_64_nasm")
+        elif arg == "-run":
+            RYS_ARGS.add("run")
+        elif arg == "--":
+            ctx.add("literal")
+        elif arg == "-o":
+            ctx.add("output")
+        elif arg == "-strip":
+            RYS_ARGS.add("strip")
+        elif os.path.exists(arg):
+            continue
+        else:
+            sys.exit(msg(f"Unknown argument: {arg!r}"))
+
+    return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
 def main() -> int:
     """Entry/main function"""
     if len(sys.argv) < 2:
-        return msg("Not sufficient ammount of arguments: <file>")
+        msg("Not sufficient ammount of arguments")
+        return usage()
 
-    if not os.path.exists(sys.argv[1]):
+    filename: tuple[str, str] = parse_args()
+
+    if not os.path.exists(filename[0]):
         return msg(f"File {sys.argv[1]!r} does not exist")
 
-    bin_name: str = os.path.splitext(os.path.basename(sys.argv[1]))[0]
+    bin_name: str = filename[1]
     asm_name: str = bin_name + ".asm"
     obj_name: str = bin_name + ".o"
 
-    asm: Generator[tuple[str, int], None, None] = generate_x86_64_nasm_assembly_linux(
-        rys_to_ast(sys.argv[1])
-    )
+    asm: Generator[tuple[str, int], None, None]
+
+    asmc: str
+    linker: str
+
+    ld_flags: str = ""
+    asm_flags: str = ""
+
+    if "format_linux_elf64_x86_64_nasm" in RYS_ARGS:
+        asm = generate_x86_64_nasm_assembly_linux(rys_to_ast(sys.argv[1]))
+
+        asmc = "nasm"
+        linker = "ld"
+
+        asm_flags = f"-w+error -felf64 {asm_name} -o '{obj_name}' "
+        ld_flags = f"--require-defined=_start -nostdlib -o '{bin_name}' '{obj_name}' "
+
+        if "debug_flags" in RYS_ARGS:
+            ld_flags += (
+                "-O0 --compress-debug-sections=none --eh-frame-hdr --gc-sections"
+            )
+            asm_flags += "-g -gdwarf -O0"
+
+        if "release_flags" in RYS_ARGS:
+            ld_flags += "-O3 -X -s -S"
+            asm_flags += "-O3 -s"
+    else:
+        msg("No format specified")
+        return usage()
+
+    if os.environ.get("RYS_LD_FLAGS"):
+        ld_flags = os.environ.get("RYS_LD_FLAGS") or ""
+
+    if os.environ.get("RYS_ASM_FLAGS"):
+        asm_flags = os.environ.get("RYS_ASM_FLAGS") or ""
+
+    ld_flags += os.environ.get("RYS_LD_FLAGS") or ""
+    asm_flags += os.environ.get("RYS_ASM_FLAGS") or ""
 
     msg(f"Writing assembly to {asm_name}...", "INFO")
     with open(asm_name, "w") as rys_asm:
@@ -329,10 +438,32 @@ def main() -> int:
             rys_asm.write(line + "\n")
 
     msg(f"Compiling {asm_name}...", "INFO")
-    os.system(f"nasm -w+error -felf64 {asm_name} -o {obj_name}")
-    os.system(
-        f"ld --require-defined=_start -nostdlib --no-pie -o {bin_name} {obj_name}"
-    )
+    if os.system(f"{asmc} {asm_flags}"):
+        return msg("Assembler failed")
+
+    if os.system(f"{linker} {ld_flags}"):
+        return msg("Linker failed")
+
+    if "strip" in RYS_ARGS:
+        msg(f"Stripping {bin_name}...", "INFO")
+        if os.system(
+            f"strip --strip-all \
+                    -N __gentoo_check_ldflags__ -R .comment \
+                    -R .GCC.command.line --remove-section=.eh_frame \
+                    --remove-section=.eh_frame_hdr --remove-section=.gnu.hash \
+                    --remove-section=.eh_frame_hdr --remove-section=.eh_frame_ptr \
+                    --remove-section=.note.gnu.gold-version \
+                    --remove-section=.note.gnu.build-id \
+                    --remove-section=.note.ABI-tag --remove-section=.note \
+                    --remove-section=.gnu.version --remove-section=.comment \
+                    --merge-notes --strip-debug --strip-unneeded -x \
+                    -- '{bin_name}'"
+        ):
+            return msg("Stripper failed")
+
+    if "run" in RYS_ARGS:
+        msg(f"Running {bin_name!r}", "INFO")
+        os.system(f"./'{bin_name}' {os.environ.get('RYS_OFLAGS') or ''}")
 
     return 0
 
