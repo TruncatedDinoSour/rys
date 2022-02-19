@@ -45,7 +45,9 @@ class Token:
 def msg(msg: str, header: str = "ERROR") -> int:
     """Print message and return error exit code"""
 
-    sys.stderr.write(f" ** {header}{': ' if msg[0] != ':' else ''}{msg}\n")
+    if "quiet" not in RYS_ARGS:
+        sys.stderr.write(f" ** {header}{': ' if msg[0] != ':' else ''}{msg}\n")
+
     return EXIT_ERR
 
 
@@ -75,7 +77,7 @@ assert len(RysType) == 2, "Unhandled types in AST generation"
 
 
 def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
-    msg("Generating AST...", "INFO")
+    msg(f"Generating AST for {file_path!r}...", "INFO")
 
     config: dict[str, Any] = {}
     token_ctx: set[str] = set()
@@ -181,6 +183,7 @@ def generate_x86_64_nasm_assembly_linux(
     start_iname: int = 0,
     stack: Optional[list[tuple[Any, RysType]]] = None,
     features: Optional[set[str]] = None,
+    do_msg: bool = True,
 ) -> Generator[tuple[str, int], None, None]:
     """
     API (index 1 of return)
@@ -188,7 +191,9 @@ def generate_x86_64_nasm_assembly_linux(
     0 -- assembly
     1 -- data
     """
-    msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
+
+    if do_msg:
+        msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
     data_section: list[str] = []
 
@@ -336,7 +341,8 @@ def usage() -> int:
         f"    -run                        -- [{'on' if '-run' in sys.argv else 'off'}] run binary after compilation",
         f"    --                          -- [{'on' if '--' in sys.argv[1:] else 'off'}] treat next argument as filename",
         f"    -o <filename>               -- [{'on' if '-o' in sys.argv[1:] else 'off'}] output binary",
-        f"    -strip                      -- [{'on' if '-run' in sys.argv else 'off'}] strip binary after compiling",
+        f"    -strip                      -- [{'on' if '-strip' in sys.argv else 'off'}] strip binary after compiling",
+        f"    -quiet                      -- [{'on' if '-quiet' in sys.argv else 'off'}] run quietly",
         "",
         " ENV",
         "    RYS_LD_FLAGS                -- all linker flags",
@@ -390,6 +396,8 @@ def parse_args() -> tuple[str, str]:
             ctx.add("output")
         elif arg == "-strip":
             RYS_ARGS.add("strip")
+        elif arg == "-quiet":
+            RYS_ARGS.add("quiet")
         elif os.path.exists(arg):
             continue
         else:
@@ -403,8 +411,12 @@ assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 
 
-def type_check_ast(ast: Generator[Token, None, None]) -> Generator[Token, None, None]:
-    msg("Type checking program", "INFO")
+def type_check_ast(
+    ast: Generator[Token, None, None], do_msg: bool = True
+) -> Generator[Token, None, None]:
+    if do_msg:
+        msg("Type checking program...", "INFO")
+
     stack: list[RysType] = []
 
     for token in ast:
