@@ -55,6 +55,20 @@ def tk_die(message: str, token: Token) -> None:
     )
 
 
+assert len(RysType) == 2, "Unhandled types in type-to-string"
+
+
+def type_to_str(r_type: RysType) -> str:
+    type_name = "Unknown"
+
+    if r_type == RysType.INT:
+        type_name = "integer"
+    elif r_type == RysType.STR:
+        type_name = "string"
+
+    return type_name
+
+
 assert len(TokenType) == 4, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
@@ -85,7 +99,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
         for lidx, line in enumerate(rys_code, 1):
             if "in.literal" in token_ctx:
                 die(
-                    'No closing double quote (") to close string',
+                    f'No closing double quote (") to close {type_to_str(RysType.STR)}',
                 )
 
             config["line"] = lidx
@@ -133,7 +147,9 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                     try:
                         yield new_token(TokenType.PUSH_INT, int(token))
                     except ValueError:
-                        die(f"Failed to convert {token!r} to number")
+                        die(
+                            f"Failed to convert {token!r} to {type_to_str(RysType.INT)}"
+                        )
                 else:
                     if token == "exit":
                         yield new_token(
@@ -149,7 +165,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         die(f"Unknown token: {token!r}")
 
             if "in.literal" in token_ctx:
-                die('No closing double quote (") to close string')
+                die('No closing double quote (") to close {type_to_str(RysType.STR)}')
 
 
 assert (
@@ -172,7 +188,6 @@ def generate_x86_64_nasm_assembly_linux(
     0 -- assembly
     1 -- data
     """
-
     msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
     data_section: list[str] = []
@@ -202,7 +217,7 @@ def generate_x86_64_nasm_assembly_linux(
         if token.t_type == TokenType.PUSH_INT:
             if token.t_value > 2 ** 64:
                 tk_die(
-                    f"Oveflow error: integer {token.t_value} does not fit into 64 bits",
+                    f"Oveflow error: {type_to_str(RysType.INT)} {token.t_value} does not fit into 64 bits",
                     token,
                 )
 
@@ -239,7 +254,10 @@ def generate_x86_64_nasm_assembly_linux(
                 fd = tmp_stack.pop()
 
                 if fd[1] != RysType.INT:
-                    tk_die(f"File descriptor is not a number: {fd[0]}", token)
+                    tk_die(
+                        f"File descriptor is not {type_to_str(RysType.INT)}: {fd[0]}",
+                        token,
+                    )
                 elif fd[0] > 2048:
                     tk_die(
                         f"Linux cannot open more than 2048 file descriptors, so {fd[0]} will always fail",
@@ -378,6 +396,56 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
+assert len(TokenType) == 4, "Unhandled token types in type checking"
+assert len(InstructionType) == 2, "Unhandled instructions in type checking"
+assert len(RysType) == 2, "Unhandled types in type checking"
+
+
+def type_check_ast(ast: Generator[Token, None, None]) -> Generator[Token, None, None]:
+    msg("Type checking program", "INFO")
+    stack: list[RysType] = []
+
+    for token in ast:
+        if token.t_type == TokenType.PUSH_INT:
+            stack.append(RysType.INT)
+        elif token.t_type == TokenType.PUSH_STR:
+            stack.append(RysType.STR)
+        elif token.t_type == TokenType.INSTRUCTION:
+            if token.t_value == InstructionType.INSTRUCTION_EXIT:
+                exit_code = stack.pop()
+                if exit_code != RysType.INT:
+                    tk_die(
+                        f"Exit expected {type_to_str(RysType.INT)} on the stack as exit code, but got {type_to_str(exit_code)}",
+                        token,
+                    )
+            elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
+                fd = stack.pop()
+
+                if fd != RysType.INT:
+                    tk_die(
+                        f"WriteFD expected a {type_to_str(RysType.INT)} {type_to_str(RysType.INT)} the stack as the file descriptor, but got {type_to_str(fd)}",
+                        token,
+                    )
+
+                string = stack.pop()
+
+                if string != RysType.STR:
+                    tk_die(
+                        f"writefd expected a string on the stack as the content, but got {type_to_str(string)}",
+                        token,
+                    )
+        elif token.t_type == TokenType.DROP:
+            drop_ammount = stack.pop()
+
+            if drop_ammount != RysType.INT:
+                tk_die(
+                    f"Drop expected a {type_to_str(RysType.INT)} on the stack as the ammount of items to drop, but got {type_to_str(drop_ammount)}",
+                    token,
+                )
+
+        yield token
+
+
 def main() -> int:
     """Entry/main function"""
     if len(sys.argv) < 2:
@@ -394,6 +462,7 @@ def main() -> int:
     obj_name: str = bin_name + ".o"
 
     asm: Generator[tuple[str, int], None, None]
+    ast: Generator[Token, None, None] = type_check_ast(rys_to_ast(sys.argv[1]))
 
     asmc: str
     linker: str
@@ -402,7 +471,7 @@ def main() -> int:
     asm_flags: str = ""
 
     if "format_linux_elf64_x86_64_nasm" in RYS_ARGS:
-        asm = generate_x86_64_nasm_assembly_linux(rys_to_ast(sys.argv[1]))
+        asm = generate_x86_64_nasm_assembly_linux(ast)
 
         asmc = "nasm"
         linker = "ld"

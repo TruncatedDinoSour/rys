@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+[ ! "$NOFAIL" ] && set -e
 
 main() {
     rm -rf built_tests
@@ -8,7 +8,7 @@ main() {
 
     cd built_tests
 
-    for rys_test in ../tests/*; do
+    for rys_test in ../"${TESTDIR:-tests}"/*; do
         time ../src/rysc "$rys_test" -linux-elf64-x86_64-nasm "$@"
 
         {
