@@ -366,9 +366,11 @@ def parse_args() -> tuple[str, str]:
     for arg in sys.argv[1:]:
         if "literal" in ctx:
             filename = arg
+            ctx.remove("literal")
             continue
         elif "output" in ctx:
             output = arg
+            ctx.remove("output")
             continue
 
         if arg == "-help":
