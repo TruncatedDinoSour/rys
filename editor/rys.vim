@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:     Rys
 " Maintainer:   Ari Archer <truncateddinosour@gmail.com>
-" Last Change:  2022 Feb 18
+" Last Change:  2022 Feb 19
 
 " Usage Instructions
 " Put this file in ~/.vim/syntax/rys.vim
@@ -9,7 +9,7 @@
 " autocmd BufRead,BufNewFile *.rys set filetype=rys
 
 if exists("b:current_syntax")
-  finish
+    finish
 endif
 
 
