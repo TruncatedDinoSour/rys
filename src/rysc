@@ -520,6 +520,8 @@ def main() -> int:
     if not os.path.exists(filename[0]):
         return msg(f"File {sys.argv[1]!r} does not exist")
 
+    vprint(f"Compiling {filename[0]!r}")
+
     bin_name: str = filename[1]
     asm_name: str = bin_name + ".asm"
     obj_name: str = bin_name
