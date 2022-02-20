@@ -21,8 +21,8 @@ __author__ = "Ari Archer <truncateddinosour@gmail.com>"
 class TokenType(Enum):
     PUSH_INT = auto()
     PUSH_STR = auto()
-    DROP = auto()
     INSTRUCTION = auto()
+    DROP = auto()
 
 
 class InstructionType(Enum):
@@ -176,7 +176,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         die(f"Unknown token: {token!r}")
 
             if "in.literal" in token_ctx:
-                die('No closing double quote (") to close {type_to_str(RysType.STR)}')
+                die(f'No closing double quote (") to close {type_to_str(RysType.STR)}')
 
 
 assert (
@@ -247,17 +247,31 @@ def generate_x86_64_nasm_assembly_linux(
 
             tmp_stack.append((int(token.t_value), RysType.INT))
         elif token.t_type == TokenType.PUSH_STR:
-            data_section.append(
-                f"addr_str_{iname}: db {','.join((str(ord(char)) for char in token.t_value.encode('raw-unicode-escape', errors='replace').decode('unicode-escape', errors='replace')))}"
+            val = (
+                ",".join(
+                    (
+                        str(ord(char))
+                        for char in token.t_value.encode(
+                            "raw-unicode-escape", errors="replace"
+                        ).decode("unicode-escape", errors="replace")
+                    )
+                )
+                if token.t_value.strip()
+                else "0"
             )
+            data_section.append(f"addr_str_{iname}: db {val}")
+            data_section.append(f"addr_str_len_{iname}: equ $-addr_str_{iname}")
 
             vprint(f"Push {type_to_str(RysType.STR)} {token.t_value}")
 
             yield f"str_{iname}:", 0
             yield f"    mov rax, addr_str_{iname}", 0
             yield r"    push rax", 0
+            yield f"    mov rax, addr_str_len_{iname}", 0
+            yield r"    push rax", 0
 
             tmp_stack.append((str(token.t_value), RysType.STR))
+            tmp_stack.append((len(token.t_value), RysType.INT))
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 if len(tmp_stack) < 1:
@@ -265,7 +279,7 @@ def generate_x86_64_nasm_assembly_linux(
 
                 vprint(f"Syscall 60 (exit), rdi = {tmp_stack.pop()[0]}")
 
-                yield f"inst_{iname}:", 0
+                yield f"exit_{iname}:", 0
                 yield "    mov rax, 60", 0
                 yield "    pop rdi", 0
                 yield "    syscall", 0
@@ -274,6 +288,7 @@ def generate_x86_64_nasm_assembly_linux(
                     tk_die("Not enough arguments for writefd", token)
 
                 fd = tmp_stack.pop()
+                tmp_stack.pop()  # str len
 
                 if fd[1] != RysType.INT:
                     tk_die(
@@ -292,7 +307,10 @@ def generate_x86_64_nasm_assembly_linux(
                 fd_data = tmp_stack.pop()
 
                 if fd_data[1] != RysType.STR:
-                    tk_die(f"{fd_data[1]!r} is not a valid type for writefd", token)
+                    tk_die(
+                        f"{type_to_str(fd_data[1])!r} is not a valid type for writefd",
+                        token,
+                    )
 
                 fd_data_len = (
                     len(fd_data[0]) - 1
@@ -303,8 +321,8 @@ def generate_x86_64_nasm_assembly_linux(
                 yield f"writefd_{iname}:", 0
                 yield r"    mov rax, 1", 0
                 yield r"    pop rdi", 0
+                yield r"    pop rdx", 0
                 yield r"    pop rsi", 0
-                yield f"    mov rdx, {fd_data_len}", 0
                 yield r"    syscall", 0
 
                 tmp_stack.append((fd_data_len, RysType.INT))
@@ -354,7 +372,7 @@ def generate_x86_64_nasm_assembly_linux(
 
 def usage() -> int:
     help_text = [
-        f" Usage: {{ENV}}={{VAL}}... {sys.argv[0]} <file | -help> -flag(s)",
+        f" Usage: {{ENV}}={{VAL}}... {os.path.basename(sys.argv[0])} <file | -help> -flag(s)",
         "",
         " FLAGS",
         f"    -help                       -- [{'on' if '-help' in sys.argv else 'off'}] print help",
