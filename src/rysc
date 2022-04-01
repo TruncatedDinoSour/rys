@@ -14,8 +14,8 @@ EXIT_OK: int = 0
 EXIT_ERR: int = 1
 RYS_ARGS: set[str] = set()
 
-__version__ = "0.1"
-__author__ = "Ari Archer <truncateddinosour@gmail.com>"
+__version__ = "0.2"
+__author__ = "Ari Archer <ari.web.xyz@gmail.com>"
 
 
 class TokenType(Enum):
@@ -23,6 +23,12 @@ class TokenType(Enum):
     PUSH_STR = auto()
     INSTRUCTION = auto()
     DROP = auto()
+
+
+class AsmFeatures(Enum):
+    EXIT = auto()
+    WRITEFD = auto()
+    WRITEFD_INT = auto()
 
 
 class InstructionType(Enum):
@@ -40,6 +46,50 @@ class Token:
     t_type: TokenType
     t_pos: tuple[int, int, str]  # line, column, file
     t_value: Any
+
+
+ASM_FEATURES: dict[AsmFeatures, list[str]] = {
+    AsmFeatures.EXIT: ["_std_rys_exit:", "    mov rax, 60", "    syscall", "    ret"],
+    AsmFeatures.WRITEFD: [
+        "_std_rys_writefd:",
+        "    mov rax, 1",
+        "    syscall",
+        "    ret",
+    ],
+    AsmFeatures.WRITEFD_INT: [
+        "_std_rys_writefd_int:",
+        "   mov r9, -3689348814741910323",
+        "   sub rsp, 40",
+        "   lea rcx, [rsp+30]",
+        ".L2:",
+        "   mov rax, rdi",
+        "   lea r8, [rsp+32]",
+        "   mul r9",
+        "   mov rax, rdi",
+        "   sub r8, rcx",
+        "   shr rdx, 3",
+        "   lea rsi, [rdx+rdx*4]",
+        "   add rsi, rsi",
+        "   sub rax, rsi",
+        "   add eax, 48",
+        "   mov BYTE [rcx], al",
+        "   mov rax, rdi",
+        "   mov rdi, rdx",
+        "   mov rdx, rcx",
+        "   sub rcx, 1",
+        "   cmp rax, 9",
+        "   ja .L2",
+        "   lea rax, [rsp+32]",
+        "   sub rdx, rax",
+        "   xor eax, eax",
+        "   lea rsi, [rsp+32+rdx]",
+        "   mov rdx, r8",
+        "   mov rax, 1",
+        "   syscall",
+        "   add rsp, 40",
+        "   ret",
+    ],
+}
 
 
 def msg(msg: str, header: str = "ERROR") -> int:
@@ -119,6 +169,11 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                 config["column"] = cidx
 
                 # String parsing sux
+                # TODO: better parsing like wtf does this even fucking
+                #       like I mean it works, but I have no idea how to
+                #       maintain it, please help :')
+                #       btw "\\" does not work
+
                 if "in.literal" in token_ctx:
                     if not token.endswith('"') or token.endswith('\\"'):
                         tmp_stack.append(token)
@@ -184,6 +239,9 @@ assert (
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
+assert (
+    len(AsmFeatures) == 3
+), "Unhandled asm features in generate_x86_64_nasm_assembly_linux()"
 
 
 def generate_x86_64_nasm_assembly_linux(
@@ -191,7 +249,7 @@ def generate_x86_64_nasm_assembly_linux(
     full: bool = True,
     start_iname: int = 0,
     stack: Optional[list[tuple[Any, RysType]]] = None,
-    features: Optional[set[str]] = None,
+    features: Optional[set[AsmFeatures]] = None,
     do_msg: bool = True,
 ) -> Generator[tuple[str, int], None, None]:
     """
@@ -206,168 +264,113 @@ def generate_x86_64_nasm_assembly_linux(
     if do_msg:
         msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
-    data_section: list[str] = []
-
-    tmp_stack: list[tuple[Any, RysType]] = stack or []
+    asm_stack: list[tuple[Any, RysType]] = stack or []
+    asm_data: list[Any] = []
+    asm_features: set[AsmFeatures] = features or set()
+    start_lb: list[str] = []
 
     if full:
         vprint("Generating nasm x86_64 64-bit initial header")
 
         yield "BITS 64", 0
         yield "segment .text", 0
-        yield "global _start", 0
-        yield "_start:", 0
-        yield "    lea rax, [rel rys_stack_end]", 0
 
     for token in ast:
-        # Ignore the raw (r"...") strings, I cannot stand unalignments
-        # ---------------------------------------------------------------------------
-        # Conversions with int(), str(), .. are there because some stuff might
-        #             be marked as a number where it's a string or something
-        # ---------------------------------------------------------------------------
-        # We need to simulate the stack at least a bit for some instructions
-
-        iname: str = (
-            f"{token.t_pos[0]}_{token.t_pos[1]}__{start_iname}_{token.t_type.value}"
-        )
-        start_iname += 1
+        iname: str = f"_{start_iname}_{token.t_pos[0]}_{token.t_pos[1]}"
 
         if token.t_type == TokenType.PUSH_INT:
             if token.t_value > 2 ** 64:
                 tk_die(
-                    f"Oveflow error: {type_to_str(RysType.INT)} {token.t_value} does not fit into 64 bits",
+                    f"{type_to_str(RysType.INT)} {token.t_value!r} does not fit into 64 bits",
                     token,
                 )
 
-            vprint(f"Push {type_to_str(RysType.INT)} {token.t_value}")
-
-            yield f"int_{iname}:", 0
-            yield f"    mov rax, {token.t_value}", 0
-            yield r"    push rax", 0
-
-            tmp_stack.append((int(token.t_value), RysType.INT))
+            asm_stack.append((token.t_value, RysType.INT))
         elif token.t_type == TokenType.PUSH_STR:
-            val = (
-                ",".join(
-                    (
-                        str(ord(char))
-                        for char in token.t_value.encode(
-                            "raw-unicode-escape", errors="replace"
-                        ).decode("unicode-escape", errors="replace")
-                    )
+            asm_stack.append(
+                (
+                    token.t_value.encode("raw_unicode_escape", errors="ignore").decode(
+                        "unicode_escape", errors="ignore"
+                    ),
+                    RysType.STR,
                 )
-                if token.t_value.strip()
-                else "0"
             )
-            data_section.append(f"addr_str_{iname}: db {val}")
-            data_section.append(f"addr_str_len_{iname}: equ $-addr_str_{iname}")
-
-            vprint(f"Push {type_to_str(RysType.STR)} {token.t_value}")
-
-            yield f"str_{iname}:", 0
-            yield f"    mov rax, addr_str_{iname}", 0
-            yield r"    push rax", 0
-            yield f"    mov rax, addr_str_len_{iname}", 0
-            yield r"    push rax", 0
-
-            tmp_stack.append((str(token.t_value), RysType.STR))
-            tmp_stack.append((len(token.t_value), RysType.INT))
+        elif token.t_type == TokenType.DROP:
+            for _ in range(asm_stack.pop()[0]):
+                asm_stack.pop()
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
-                if len(tmp_stack) < 1:
-                    tk_die("Exit code not supplied", token)
-
-                vprint(f"Syscall 60 (exit), rdi = {tmp_stack.pop()[0]}")
-
-                yield f"exit_{iname}:", 0
-                yield "    mov rax, 60", 0
-                yield "    pop rdi", 0
-                yield "    syscall", 0
-            elif InstructionType.INSTRUCTION_WRITEFD:
-                if len(tmp_stack) < 2:
-                    tk_die("Not enough arguments for writefd", token)
-
-                fd = tmp_stack.pop()
-                tmp_stack.pop()  # str len
-
-                if fd[1] != RysType.INT:
-                    tk_die(
-                        f"File descriptor is not {type_to_str(RysType.INT)}: {fd[0]}",
-                        token,
-                    )
-                elif fd[0] > 2048:
-                    tk_die(
-                        f"Linux cannot open more than 2048 file descriptors, so {fd[0]} will always fail",
-                        token,
-                    )
-                    # (1024) https://docs.oracle.com/cd/E19623-01/820-6168/file-descriptor-requirements.html
-                    # (2048) https://stackoverflow.com/a/28212496/17411100
-                    # NOTE: should I remove this check?..
-
-                fd_data = tmp_stack.pop()
-
-                if fd_data[1] != RysType.STR:
-                    tk_die(
-                        f"{type_to_str(fd_data[1])!r} is not a valid type for writefd",
-                        token,
-                    )
-
-                fd_data_len = (
-                    len(fd_data[0]) - 1
-                )  # Without `- 1` it seems to be causing a leak(?)
-
-                vprint("Syscall 1 -- write")
-
-                yield f"writefd_{iname}:", 0
-                yield r"    mov rax, 1", 0
-                yield r"    pop rdi", 0
-                yield r"    pop rdx", 0
-                yield r"    pop rsi", 0
-                yield r"    syscall", 0
-
-                tmp_stack.append((fd_data_len, RysType.INT))
-                # https://man7.org/linux/man-pages/man2/write.2.html
-        elif token.t_type == TokenType.DROP:
-            if len(tmp_stack) < 2:
-                tk_die("Not enough arguments for drop", token)
-
-            drop_ammount = tmp_stack.pop()
-
-            if drop_ammount[1] != RysType.INT:
-                tk_die(
-                    f"{drop_ammount[0]!r} is not a valid ammount of items to drop",
-                    token,
+                start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
+                asm_features.add(AsmFeatures.EXIT)
+            elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
+                writefd_fd, _, writefd_string, writefd_string_type = (
+                    *asm_stack.pop(),
+                    *asm_stack.pop(),
                 )
-            elif drop_ammount[0] > len(tmp_stack):
-                tk_die("Cannot drop more elements than the stack itself", token)
 
-            yield f"drop_{iname}:", 0
-            for _ in range(drop_ammount[0]):
-                yield r"    pop rax", 0
-                vprint(f"Drop {tmp_stack.pop()[0]}")
+                if writefd_string_type == RysType.STR:
+                    start_lb += [
+                        f"    mov rdi, {writefd_fd}",
+                        f"    mov rsi, str{iname}",
+                        f"    mov rdx, str_len{iname}",
+                        r"    call _std_rys_writefd",
+                    ]
 
-    if tmp_stack:
-        msg(f"{len(tmp_stack)} items left on the stack:")
+                    asm_data += [
+                        f"str{iname}: dw {','.join(map(lambda char: str(ord(char)), writefd_string))}",
+                        f"str_len{iname}: equ $-str{iname}",
+                    ]
 
-        for item in tmp_stack:
-            msg(f"{item[0]!r:50s}\t({type_to_str(item[1])})", "STACK")
+                    asm_features.add(AsmFeatures.WRITEFD)
+                elif writefd_string_type == RysType.INT:
+                    start_lb += [
+                        f"    mov rdi, {writefd_fd}",
+                        f"    mov edi, {writefd_string}",
+                        r"    call _std_rys_writefd_int",
+                    ]
 
-        msg(f"did you miss: {len(tmp_stack)} drop ?", "TIP")
+                    asm_features.add(AsmFeatures.WRITEFD_INT)
+                else:
+                    tk_die(f"Unknown writefd type: {writefd_string_type}", token)
+
+                asm_stack.append((len(str(writefd_string)), RysType.INT))
+        else:
+            tk_die(f"Unknown token: {token.t_type}", token)
+
+    if asm_stack:
+        msg("Items left on the stack:")
+
+        for val, typ in asm_stack:
+            sys.stderr.write(f"  *  {val}{type_to_str(typ):>10s}\n")
+
         sys.exit(EXIT_ERR)
 
-    if data_section and full:
-        vprint("Creating data segment")
-        yield "segment .data", 0
+    vprint("Generating features...")
 
-    for data in data_section:
-        vprint(f"Data: {data!r}")
-        yield data, 1
+    for feature in asm_features:
+        for line in ASM_FEATURES[feature]:
+            yield line, 0
+
+    vprint("Generating _start")
+
+    if not start_lb:
+        msg("No actual code found")
+        sys.exit(EXIT_ERR)
 
     if full:
-        vprint("Creating BSS")
+        yield "global _start", 0
+        yield "_start:", 0
 
-        yield "segment .bss", 0
-        yield "rys_stack_end:", 0
+    for line in start_lb:
+        yield line, 0
+
+    vprint("generating .data")
+
+    if full and asm_data:
+        yield "segment .data", 1
+
+    for data in asm_data:
+        yield data, 1
 
 
 def usage() -> int:
@@ -385,6 +388,8 @@ def usage() -> int:
         f"    -strip                      -- [{'on' if '-strip' in sys.argv else 'off'}] strip binary after compiling",
         f"    -quiet                      -- [{'on' if '-quiet' in sys.argv else 'off'}] run quietly",
         f"    -verbose                    -- [{'on' if '-quiet' in sys.argv else 'off'}] print debug/verbose information",
+        f"    -typecheck                  -- [{'on' if '-typecheck' in sys.argv else 'off'}] only typecheck, don't compile",
+        f"    -no-typecheck               -- [{'on' if '-no-typecheck' in sys.argv else 'off'}] never typecheck",
         "",
         " ENV",
         "    RYS_LD_FLAGS                -- all linker flags",
@@ -442,6 +447,10 @@ def parse_args() -> tuple[str, str]:
             RYS_ARGS.add("quiet")
         elif arg == "-verbose":
             RYS_ARGS.add("verbose")
+        elif arg == "-typecheck":
+            RYS_ARGS.add("typing")
+        elif arg == "-no-typecheck":
+            RYS_ARGS.add("no-typing")
         elif os.path.exists(arg):
             continue
         else:
@@ -458,6 +467,14 @@ assert len(RysType) == 2, "Unhandled types in type checking"
 def type_check_ast(
     ast: Generator[Token, None, None], do_msg: bool = True
 ) -> Generator[Token, None, None]:
+    if "no-typing" in RYS_ARGS:
+        vprint("Not type-checking AST")
+
+        for token in ast:
+            yield token
+
+        return
+
     vprint("Type checking AST")
 
     if do_msg:
@@ -503,9 +520,9 @@ def type_check_ast(
 
                 string = stack.pop()
 
-                if string != RysType.STR:
+                if string not in (RysType.STR, RysType.INT):
                     tk_die(
-                        f"writefd expected a string on the stack as the content, but got {type_to_str(string)}",
+                        f"writefd expected one of {', '.join(type_to_str(typ) for typ in (RysType.INT, RysType.STR))} on the stack as the content, but got {type_to_str(string)}",
                         token,
                     )
 
@@ -529,6 +546,7 @@ def type_check_ast(
 
 def main() -> int:
     """Entry/main function"""
+
     if len(sys.argv) < 2:
         msg("Not sufficient ammount of arguments")
         return usage()
@@ -555,6 +573,18 @@ def main() -> int:
 
     if "format_linux_elf64_x86_64_nasm" in RYS_ARGS:
         asm = generate_x86_64_nasm_assembly_linux(ast)
+
+        if "typing" in RYS_ARGS:
+            msg("Only typechecking AST", "TYPING")
+            ret: int = EXIT_OK
+
+            try:
+                tuple(asm)
+            except Exception as err:
+                msg(f"Typechecking failed: {err}")
+                ret = EXIT_ERR
+
+            return ret
 
         obj_name += ".o"
 
@@ -589,7 +619,7 @@ def main() -> int:
     msg(f"Writing assembly to {asm_name}...", "INFO")
     with open(asm_name, "w") as rys_asm:
         for line, _ in asm:
-            rys_asm.write(line + "\n")
+            rys_asm.write((line if "debug_flags" in RYS_ARGS else line.strip()) + "\n")
 
     msg(f"Compiling {asm_name}...", "INFO")
     vprint(f"{asmc} {asm_flags}")

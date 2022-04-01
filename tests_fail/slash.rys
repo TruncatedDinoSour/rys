@@ -1,0 +1,6 @@
+-- Bug: failed to compile on \
+
+"\\" 1 writefd 1 drop 0 exit
+"hello \\\\" 1 writefd 1 drop 0 exit
+"hello world \\\\" 1 writefd 1 drop 0 exit
+

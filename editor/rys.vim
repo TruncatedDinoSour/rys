@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:     Rys
-" Maintainer:   Ari Archer <truncateddinosour@gmail.com>
-" Last Change:  2022 Feb 19
+" Maintainer:   Ari Archer <ari.web.xyz@gmail.com>
+" Last Change:  2022 Apr 1
 
 " Usage Instructions
 " Put this file in ~/.vim/syntax/rys.vim
