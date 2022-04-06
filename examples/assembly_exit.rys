@@ -1,0 +1,6 @@
+"   syscall"
+"   mov rdi, 0"
+"   mov rax, 60"
+    3 assembly
+
+-- 60 -- linux syscall for `exit`

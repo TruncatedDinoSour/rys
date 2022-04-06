@@ -20,7 +20,7 @@ syntax keyword rysTodos TODO XXX FIXME NOTE
 
 
 " Language keywords
-syntax keyword rysKeywords drop
+syntax keyword rysKeywords drop assembly
 
 
 " Language functions

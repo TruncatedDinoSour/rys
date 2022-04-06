@@ -23,6 +23,7 @@ class TokenType(Enum):
     PUSH_STR = auto()
     INSTRUCTION = auto()
     DROP = auto()
+    ASSEMBLY = auto()
 
 
 class AsmFeatures(Enum):
@@ -128,7 +129,7 @@ def type_to_str(r_type: RysType) -> str:
     return type_name
 
 
-assert len(TokenType) == 4, "Unhandled token types in AST generation"
+assert len(TokenType) == 5, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 
@@ -227,6 +228,8 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         )
                     elif token == "drop":
                         yield new_token(TokenType.DROP, None)
+                    elif token == "assembly":
+                        yield new_token(TokenType.ASSEMBLY, None)
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -235,7 +238,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
 
 assert (
-    len(TokenType) == 4
+    len(TokenType) == 5
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
@@ -279,7 +282,7 @@ def generate_x86_64_nasm_assembly_linux(
         iname: str = f"_{start_iname}_{token.t_pos[0]}_{token.t_pos[1]}"
 
         if token.t_type == TokenType.PUSH_INT:
-            if token.t_value > 2 ** 64:
+            if token.t_value > 2**64:
                 tk_die(
                     f"{type_to_str(RysType.INT)} {token.t_value!r} does not fit into 64 bits",
                     token,
@@ -298,6 +301,9 @@ def generate_x86_64_nasm_assembly_linux(
         elif token.t_type == TokenType.DROP:
             for _ in range(asm_stack.pop()[0]):
                 asm_stack.pop()
+        elif token.t_type == TokenType.ASSEMBLY:
+            for _ in range(asm_stack.pop()[0]):
+                start_lb.append(asm_stack.pop()[0])
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
@@ -316,8 +322,12 @@ def generate_x86_64_nasm_assembly_linux(
                         r"    call _std_rys_writefd",
                     ]
 
+                    rys_str: str = ",".join(
+                        map(lambda char: str(ord(char)), writefd_string)
+                    )
+
                     asm_data += [
-                        f"str{iname}: dw {','.join(map(lambda char: str(ord(char)), writefd_string))}",
+                        f"str{iname}: db {rys_str if rys_str else 0}",
                         f"str_len{iname}: equ $-str{iname}",
                     ]
 
@@ -459,7 +469,7 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
-assert len(TokenType) == 4, "Unhandled token types in type checking"
+assert len(TokenType) == 5, "Unhandled token types in type checking"
 assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 
@@ -480,14 +490,14 @@ def type_check_ast(
     if do_msg:
         msg("Type checking program...", "INFO")
 
-    stack: list[RysType] = []
+    stack: list[tuple[RysType, int]] = []
 
     for token in ast:
         if token.t_type == TokenType.PUSH_INT:
-            stack.append(RysType.INT)
+            stack.append((RysType.INT, token.t_value))
             vprint("Type checking stack: push INT")
         elif token.t_type == TokenType.PUSH_STR:
-            stack.append(RysType.STR)
+            stack.append((RysType.STR, token.t_value))
             vprint("Type checking stack: push STR")
         elif token.t_type == TokenType.INSTRUCTION:
             vprint("Found instruction")
@@ -498,10 +508,10 @@ def type_check_ast(
                 if len(stack) < 1:
                     tk_die("Exit code not supplied", token)
 
-                exit_code = stack.pop()
-                if exit_code != RysType.INT:
+                exit_code_type, _ = stack.pop()
+                if exit_code_type != RysType.INT:
                     tk_die(
-                        f"Exit expected {type_to_str(RysType.INT)} on the stack as exit code, but got {type_to_str(exit_code)}",
+                        f"Exit expected {type_to_str(RysType.INT)} on the stack as exit code, but got {type_to_str(exit_code_type)}",
                         token,
                     )
             elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
@@ -510,36 +520,71 @@ def type_check_ast(
                 if len(stack) < 2:
                     tk_die("Not enough arguments for writefd", token)
 
-                fd = stack.pop()
+                fd_type, _ = stack.pop()
 
-                if fd != RysType.INT:
+                if fd_type != RysType.INT:
                     tk_die(
-                        f"WriteFD expected a {type_to_str(RysType.INT)} {type_to_str(RysType.INT)} the stack as the file descriptor, but got {type_to_str(fd)}",
+                        f"WriteFD expected a {type_to_str(RysType.INT)} {type_to_str(RysType.INT)} the stack as the file descriptor, but got {type_to_str(fd_type)}",
                         token,
                     )
 
-                string = stack.pop()
+                string_type, string = stack.pop()
 
-                if string not in (RysType.STR, RysType.INT):
+                if string_type not in (RysType.STR, RysType.INT):
                     tk_die(
-                        f"writefd expected one of {', '.join(type_to_str(typ) for typ in (RysType.INT, RysType.STR))} on the stack as the content, but got {type_to_str(string)}",
+                        f"writefd expected one of {', '.join(type_to_str(typ) for typ in (RysType.INT, RysType.STR))} on the stack as the content, but got {type_to_str(string_type)}",
                         token,
                     )
 
-                stack.append(string)
+                stack.append((RysType.INT, len(str(string))))
         elif token.t_type == TokenType.DROP:
             vprint("Type checking drop")
 
             if len(stack) < 2:
                 tk_die("Not enough arguments for drop", token)
 
-            drop_ammount = stack.pop()
+            drop_ammount_type, drop_ammount = stack.pop()
 
-            if drop_ammount != RysType.INT:
+            if drop_ammount_type != RysType.INT:
                 tk_die(
-                    f"Drop expected a {type_to_str(RysType.INT)} on the stack as the ammount of items to drop, but got {type_to_str(drop_ammount)}",
+                    f"Drop expected a {type_to_str(RysType.INT)} on the stack as the ammount of items to drop, but got {type_to_str(drop_ammount_type)}",
                     token,
                 )
+
+            if len(stack) < drop_ammount:
+                tk_die(
+                    f"Drop: {drop_ammount} is bigger than the elements on the stack: {len(stack)}",
+                    token,
+                )
+
+            for _ in range(drop_ammount):
+                stack.pop()
+        elif token.t_type == TokenType.ASSEMBLY:
+            if len(stack) < 2:
+                tk_die("Not enough arguments for drop", token)
+
+            assembly_ammount_type, assembly_ammount = stack.pop()
+
+            if assembly_ammount_type != RysType.INT:
+                tk_die(
+                    f"Assembly expected a {type_to_str(RysType.INT)} on the stack as the assembly ammount, but got {type_to_str(assembly_ammount_type)}",
+                    token,
+                )
+
+            if len(stack) < assembly_ammount:
+                tk_die(
+                    f"Assembly: {assembly_ammount} is bigger than the elements on the stack: {len(stack)}",
+                    token,
+                )
+
+            for _ in range(assembly_ammount):
+                assembly_line_type, _ = stack.pop()
+
+                if assembly_line_type != RysType.STR:
+                    tk_die(
+                        f"Assembly: expected type {type_to_str(RysType.STR)}, got {type_to_str(assembly_line_type)}",
+                        token,
+                    )
 
         yield token
 
