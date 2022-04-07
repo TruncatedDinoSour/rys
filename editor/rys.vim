@@ -49,7 +49,7 @@ syntax region rysString start=/\v"/ skip=/\v\\./ end=/\v"/ contains=rysEscape
 
 
 " Operator
-syntax keyword rysOperator + - *
+syntax keyword rysOperator + - * / %
 
 
 " Set highlights
