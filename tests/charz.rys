@@ -1,0 +1,8 @@
+10 100 108 114 111 119 32 111 108 108 101 104 32 42 32  -- " * hello world"
+                                                        -- And as rys is a stack based language
+                                                        -- the ASCII values are reversed
+15 charz
+
+1 writefd 1 drop
+
+0 exit

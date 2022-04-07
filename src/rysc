@@ -24,6 +24,7 @@ class TokenType(Enum):
     INSTRUCTION = auto()
     DROP = auto()
     ASSEMBLY = auto()
+    CHARZ = auto()
 
 
 class AsmFeatures(Enum):
@@ -129,7 +130,7 @@ def type_to_str(r_type: RysType) -> str:
     return type_name
 
 
-assert len(TokenType) == 5, "Unhandled token types in AST generation"
+assert len(TokenType) == 6, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 
@@ -230,6 +231,8 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(TokenType.DROP, None)
                     elif token == "assembly":
                         yield new_token(TokenType.ASSEMBLY, None)
+                    elif token == "charz":
+                        yield new_token(TokenType.CHARZ, None)
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -238,7 +241,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
 
 assert (
-    len(TokenType) == 5
+    len(TokenType) == 6
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
@@ -272,6 +275,8 @@ def generate_x86_64_nasm_assembly_linux(
     asm_features: set[AsmFeatures] = features or set()
     start_lb: list[str] = []
 
+    tmp_stack: list[Any] = []
+
     if full:
         vprint("Generating nasm x86_64 64-bit initial header")
 
@@ -304,6 +309,11 @@ def generate_x86_64_nasm_assembly_linux(
         elif token.t_type == TokenType.ASSEMBLY:
             for _ in range(asm_stack.pop()[0]):
                 start_lb.append(asm_stack.pop()[0])
+        elif token.t_type == TokenType.CHARZ:
+            for _ in range(asm_stack.pop()[0]):
+                tmp_stack.append(chr(asm_stack.pop()[0]))
+
+            asm_stack.append(("".join(tmp_stack), RysType.STR))
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
@@ -469,7 +479,7 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
-assert len(TokenType) == 5, "Unhandled token types in type checking"
+assert len(TokenType) == 6, "Unhandled token types in type checking"
 assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 
@@ -490,7 +500,8 @@ def type_check_ast(
     if do_msg:
         msg("Type checking program...", "INFO")
 
-    stack: list[tuple[RysType, int]] = []
+    stack: list[tuple[RysType, Any]] = []
+    tmp_stack: list[Any] = []
 
     for token in ast:
         if token.t_type == TokenType.PUSH_INT:
@@ -567,7 +578,7 @@ def type_check_ast(
 
             if assembly_ammount_type != RysType.INT:
                 tk_die(
-                    f"Assembly expected a {type_to_str(RysType.INT)} on the stack as the assembly ammount, but got {type_to_str(assembly_ammount_type)}",
+                    f"Assembly expected {type_to_str(RysType.INT)} on the stack as the assembly ammount, but got {type_to_str(assembly_ammount_type)}",
                     token,
                 )
 
@@ -585,6 +596,34 @@ def type_check_ast(
                         f"Assembly: expected type {type_to_str(RysType.STR)}, got {type_to_str(assembly_line_type)}",
                         token,
                     )
+        elif token.t_type == TokenType.CHARZ:
+            charz_ammount_type, charz_ammount = stack.pop()
+
+            if charz_ammount_type != RysType.INT:
+                tk_die(
+                    f"Charz expected {type_to_str(RysType.INT)} on the stack as the charz ammount, but got {type_to_str(charz_ammount_type)}",
+                    token,
+                )
+
+            if len(stack) < charz_ammount:
+                tk_die(
+                    f"Charz: {charz_ammount} is bigger than the elements on the stack: {len(stack)}",
+                    token,
+                )
+
+            for _ in range(charz_ammount):
+                charz_charcode_type, charz_charcode = stack.pop()
+
+                if charz_charcode_type != RysType.INT:
+                    tk_die(
+                        f"Charz: expected type {type_to_str(RysType.INT)}, got {type_to_str(charz_charcode_type)}",
+                        token,
+                    )
+
+                tmp_stack.append(chr(charz_charcode))
+
+            stack.append((RysType.STR, "".join(tmp_stack)))
+            tmp_stack = []
 
         yield token
 

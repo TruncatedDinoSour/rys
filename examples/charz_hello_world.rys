@@ -1,0 +1,5 @@
+10 33 100 108 114 111 119 32 44 111 108 108 101 72  -- "Hello, world!\n" (reversed as
+                                                    -- rys is a stack based programming language)
+14 charz  -- 14 characters
+
+1 writefd 1 drop 0 exit  -- Just a basic write to STDOUT

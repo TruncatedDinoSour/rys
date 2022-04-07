@@ -6,9 +6,9 @@ assembly
 
 `assembly` keyword takes:
 
-    - Assembly: Any ammount of strings that are valid assembly
-                in the main/_start label context
-    - Assembly_count: Assembly line count, an integer
+-   Assembly: Any ammount of strings that are valid assembly
+    in the main/\_start label context
+-   Assembly_count: Assembly line count, an integer
 
 And it returns nothing
 
