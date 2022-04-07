@@ -4,4 +4,3 @@
     3 assembly
 
 "Assembly failed!" 1 writefd 1 drop 1 exit
-

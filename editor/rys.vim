@@ -48,6 +48,10 @@ syntax region rysCommentLine start="--" end="$" contains=rysTodos
 syntax region rysString start=/\v"/ skip=/\v\\./ end=/\v"/ contains=rysEscape
 
 
+" Operator
+syntax keyword rysOperator + - *
+
+
 " Set highlights
 highlight default link rysTodos Todo
 highlight default link rysKeywords Keyword
@@ -56,6 +60,7 @@ highlight default link rysCommentLine Comment
 highlight default link rysString String
 highlight default link rysEscape Special
 highlight default link rysNumber Number
+highlight default link rysOperator Operator
 
 
 " Set syntax

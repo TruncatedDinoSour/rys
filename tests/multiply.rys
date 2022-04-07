@@ -1,0 +1,4 @@
+2 4 *           1 writefd 1 drop
+10 1 charz      1 writefd 1 drop
+
+0 exit
