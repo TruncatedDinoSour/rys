@@ -1,4 +1,3 @@
 0 1 drop  -- Push `0` on the stack and then drops `1`
           -- element from the stack, which is `0`
 0 exit
-
