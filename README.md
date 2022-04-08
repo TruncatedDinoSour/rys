@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="logo/rys.png" alt="rys logo"/>
+    <img src="logo/rys.png" alt="rys logo" width="50%"/>
 </p>
 
 ---
