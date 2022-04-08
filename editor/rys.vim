@@ -48,7 +48,7 @@ syntax region rysCommentLine start="--" end="$" contains=rysTodos
 syntax region rysString start=/\v"/ skip=/\v\\./ end=/\v"/ contains=rysEscape
 
 
-" Operator
+" Operators
 syntax keyword rysOperator + - * / %
 
 
