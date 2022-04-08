@@ -1,0 +1,4 @@
+9999 9999 ** 1 drop 0 exit
+
+-- You'd think it fails... though numpy
+-- just rolls it over

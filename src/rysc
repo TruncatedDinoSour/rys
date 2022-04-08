@@ -739,7 +739,7 @@ def type_check_ast(
             if token.t_value == OperatorType.PLUS:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for + on the stack",
+                        "Not enough arguments for + on the stack",
                         token,
                     )
 
@@ -763,7 +763,7 @@ def type_check_ast(
             elif token.t_value == OperatorType.MINUS:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for - on the stack",
+                        "Not enough arguments for - on the stack",
                         token,
                     )
 
@@ -787,7 +787,7 @@ def type_check_ast(
             elif token.t_value == OperatorType.MULTIPLY:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for * on the stack",
+                        "Not enough arguments for * on the stack",
                         token,
                     )
 
@@ -813,7 +813,7 @@ def type_check_ast(
             elif token.t_value == OperatorType.DIVIDE:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for / on the stack",
+                        "Not enough arguments for / on the stack",
                         token,
                     )
 
@@ -845,7 +845,7 @@ def type_check_ast(
             elif token.t_value == OperatorType.MODULO:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for % on the stack",
+                        "Not enough arguments for % on the stack",
                         token,
                     )
 
@@ -865,11 +865,17 @@ def type_check_ast(
                         token,
                     )
 
+                if modulo_value2 == 0:
+                    tk_die(
+                        f"Cannot divide (in context of modulo) {modulo_value1!r} by 0",
+                        token,
+                    )
+
                 stack.append((RysType.INT, np.mod(modulo_value1, modulo_value2)))
             elif token.t_value == OperatorType.POWER:
                 if len(stack) < 2:
                     tk_die(
-                        "Not enough argument for ** on the stack",
+                        "Not enough arguments for ** on the stack",
                         token,
                     )
 
