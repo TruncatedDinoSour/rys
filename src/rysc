@@ -15,6 +15,7 @@ warnings.filterwarnings("error", category=Warning)
 EXIT_OK: int = 0
 EXIT_ERR: int = 1
 RYS_ARGS: set[str] = set()
+MAX_64 = 2**64
 
 __version__ = "0.2"
 __author__ = "Ari Archer <ari.web.xyz@gmail.com>"
@@ -290,8 +291,6 @@ def generate_x86_64_nasm_assembly_linux(
     0 -- assembly
     1 -- data
     """
-
-    MAX_64 = 2 ** 64
 
     vprint("Generaing assembly for linux x86_64 nasm")
 
@@ -876,6 +875,12 @@ def type_check_ast(
                         token,
                     )
 
+                if power_value1 < 0:
+                    tk_die(
+                        f"** expected positive {type_to_str(RysType.INT)} on the stack as the first value, but got negative {type_to_str(power_value1_type)}",
+                        token,
+                    )
+
                 power_value2_type, power_value2 = stack.pop()
 
                 if power_value2_type != RysType.INT:
@@ -884,7 +889,20 @@ def type_check_ast(
                         token,
                     )
 
-                stack.append((RysType.INT, np.power(power_value1, power_value2)))
+                if power_value2 < 0:
+                    tk_die(
+                        f"** expected positive {type_to_str(RysType.INT)} on the stack as the first value, but got negative {type_to_str(power_value2_type)}",
+                        token,
+                    )
+
+                stack.append(
+                    (
+                        RysType.INT,
+                        np.power(
+                            np.ulonglong(power_value1), np.ulonglong(power_value2)
+                        ),
+                    )
+                )
             else:
                 tk_die(
                     f"Unknown operator: {token.t_value}",
