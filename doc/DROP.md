@@ -1,4 +1,4 @@
-# Drop
+# Drop keyword
 
 Drop is a `keyword` in the rys programming language
 which drops/pops/removes `n` amount of elements

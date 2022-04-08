@@ -1,4 +1,4 @@
-# Writefd
+# Writefd instruction
 
 `writefd` in the rys programming language is an `instruction`
 which can write textual data to a specified file descriptor number

@@ -1,4 +1,4 @@
-# Exit
+# Exit instruction
 
 `exit` in the rys programming language is an `instruction` which
 can exit with a specified exit code.

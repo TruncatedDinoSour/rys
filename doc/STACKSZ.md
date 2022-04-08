@@ -1,4 +1,4 @@
-# Stacksz
+# Stacksz keyword
 
 `stacksz` in the rys programming language is a `keyword`
 which returns the current stack size

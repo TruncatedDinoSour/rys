@@ -1,4 +1,4 @@
-# Syntax
+# Syntax definition
 
 The syntax of the rys programming language is quite simple.
 To push values you just type them and to do an operation

@@ -1,4 +1,4 @@
-# Charz
+# Charz keyword
 
 `charz` in the rys programming language is a `keyword`
 which can convert `X` amount of supplied [ASCII values](https://ascii.cl/)

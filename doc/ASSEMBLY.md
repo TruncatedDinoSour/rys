@@ -1,4 +1,4 @@
-# Assembly
+# Assembly keyword
 
 `assembly` in the rys programming language is a `keyword`
 which can inject pure user-specified assembly to generated

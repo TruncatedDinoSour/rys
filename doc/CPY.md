@@ -1,4 +1,4 @@
-# Cpy
+# Cpy keyword
 
 `cpy` in the rys programming language is an `instruction`
 which copes `n` amount of items on the stack

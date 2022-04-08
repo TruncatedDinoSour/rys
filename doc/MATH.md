@@ -1,4 +1,4 @@
-# Math
+# Math/arithmetic operators
 
 Rys programming language has 6 arithmetic operators:
 
