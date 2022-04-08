@@ -24,7 +24,7 @@ syntax keyword rysKeywords drop assembly charz stacksz
 
 
 " Language functions
-syntax keyword rysFunctions exit writefd
+syntax keyword rysFunctions exit writefd cpy
 
 
 " Escapes

@@ -50,6 +50,7 @@ class AsmFeatures(Enum):
 class InstructionType(Enum):
     INSTRUCTION_EXIT = auto()
     INSTRUCTION_WRITEFD = auto()
+    INSTRUCTION_CPY = auto()
 
 
 class RysType(Enum):
@@ -145,7 +146,7 @@ def type_to_str(r_type: RysType) -> str:
 
 
 assert len(TokenType) == 8, "Unhandled token types in AST generation"
-assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
+assert len(InstructionType) == 3, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
 
@@ -242,6 +243,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(
                             TokenType.INSTRUCTION, InstructionType.INSTRUCTION_WRITEFD
                         )
+                    elif token == "cpy":
+                        yield new_token(
+                            TokenType.INSTRUCTION, InstructionType.INSTRUCTION_CPY
+                        )
                     elif token == "drop":
                         yield new_token(TokenType.DROP, None)
                     elif token == "assembly":
@@ -272,7 +277,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 assert (
     len(TokenType) == 8
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
-assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
+assert len(InstructionType) == 3, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
 assert (
     len(AsmFeatures) == 3
@@ -463,17 +468,21 @@ def generate_x86_64_nasm_assembly_linux(
                     ]
 
                     asm_features.add(AsmFeatures.WRITEFD_INT)
-                else:
-                    tk_die(f"Unknown writefd type: {writefd_string_type}", token)
 
                 asm_stack.append((len(str(writefd_string)), RysType.INT))
+            elif token.t_value == InstructionType.INSTRUCTION_CPY:
+                for idx in range(asm_stack.pop()[0]):
+                    tmp_stack.append(asm_stack[-(idx + 1)])
+
+                asm_stack += tmp_stack[::-1]
+                tmp_stack = []
             else:
                 tk_die(f"Unknown instruction: {token.t_value}", token)
         else:
             tk_die(f"Unknown token: {token.t_type}", token)
 
     if asm_stack:
-        msg("Items left on the stack:")
+        msg(f"{len(asm_stack)} items left on the stack:")
 
         for val, typ in asm_stack:
             sys.stderr.write(f"  *  {val!r}{type_to_str(typ):>10s}\n")
@@ -595,7 +604,7 @@ def parse_args() -> tuple[str, str]:
 
 
 assert len(TokenType) == 8, "Unhandled token types in type checking"
-assert len(InstructionType) == 2, "Unhandled instructions in type checking"
+assert len(InstructionType) == 3, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 assert len(OperatorType) == 6, "Unhandled operator types in type checking"
 
@@ -664,6 +673,36 @@ def type_check_ast(
                     )
 
                 stack.append((RysType.INT, len(str(string))))
+            elif token.t_value == InstructionType.INSTRUCTION_CPY:
+                vprint("Type checking cpy instruction")
+
+                if len(stack) < 2:
+                    tk_die("Not enough arguments for cpy", token)
+
+                cpy_ammount_type, cpy_ammount = stack.pop()
+
+                if cpy_ammount_type != RysType.INT:
+                    tk_die(
+                        f"Cpy expected {type_to_str(RysType.INT)} but got {type_to_str(cpy_ammount_type)}",
+                        token,
+                    )
+
+                if cpy_ammount > len(stack):
+                    tk_die(
+                        f"Cpy: cannot copy more than {len(stack)} items, the whole length of the stack, cpy asked for {cpy_ammount}",
+                        token,
+                    )
+
+                for idx in range(cpy_ammount):
+                    tmp_stack.append(stack[-(idx + 1)])
+
+                stack += tmp_stack[::-1]
+                tmp_stack = []
+            else:
+                tk_die(
+                    f"Unknown instruction: {token.t_value}",
+                    token,
+                )
         elif token.t_type == TokenType.DROP:
             vprint("Type checking drop")
 

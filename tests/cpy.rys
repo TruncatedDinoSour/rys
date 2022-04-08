@@ -1,0 +1,4 @@
+10 105 104 3 cpy
+stacksz charz
+
+1 writefd 1 drop 0 exit

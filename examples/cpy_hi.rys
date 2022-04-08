@@ -1,0 +1,9 @@
+10 73 72 3 cpy          -- Copy "HI\n" (now "HI\n" "HI\n")
+stacksz charz           -- Convert both to string
+1 writefd stacksz drop  -- Write it out to STDOUT
+0 exit                  -- Exit
+
+------------
+--> HI
+--> HI
+------------
