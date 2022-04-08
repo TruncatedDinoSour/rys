@@ -827,15 +827,15 @@ def type_check_ast(
 
                 divide_value2_type, divide_value2 = stack.pop()
 
-                if divide_value2 == 0:
-                    tk_die(
-                        f"Cannot divide {divide_value1} by 0",
-                        token,
-                    )
-
                 if divide_value2_type != RysType.INT:
                     tk_die(
                         f"/ expected {type_to_str(RysType.INT)} on the stack as the second value, but got {type_to_str(divide_value2_type)}",
+                        token,
+                    )
+
+                if divide_value2 == 0:
+                    tk_die(
+                        f"Cannot divide {divide_value1!r} by 0",
                         token,
                     )
 
