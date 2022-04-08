@@ -9,7 +9,7 @@ main() {
         echo "# Documentation index"
 
         for file in doc/md/*; do
-            echo "- [$(head -n 1 "$file" | sed 's/^# //')](/$file))"
+            echo "- [$(head -n 1 "$file" | sed 's/^# //')](/$file)"
         done
     } >doc/README.md
 }
