@@ -20,11 +20,11 @@ syntax keyword rysTodos TODO XXX FIXME NOTE
 
 
 " Language keywords
-syntax keyword rysKeywords drop assembly charz stacksz
+syntax keyword rysKeywords drop assembly charz stacksz cpy
 
 
 " Language functions
-syntax keyword rysFunctions exit writefd cpy
+syntax keyword rysFunctions exit writefd
 
 
 " Escapes
