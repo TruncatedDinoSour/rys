@@ -7,7 +7,7 @@ Rys programming language has 6 arithmetic operators:
 -   `*` (multiply) -- Multiply two numbers
 -   `/` (divide) -- Divide two numbers
 -   `%` (modulo) -- Return two number division remainder
--   `**` (exponent) -- Raise one number to the power of another
+-   `**` (power) -- Raise one number to the power of another
 
 Rys math is only precise up to 0th decimal place,
 I.e. the full part
