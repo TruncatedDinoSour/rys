@@ -1,0 +1,4 @@
+69  stacksz         1 writefd 2 drop
+10  stacksz charz   1 writefd 1 drop
+
+0 exit
