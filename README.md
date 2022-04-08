@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="logo/rys.png" alt="rys logo" width="50%"/>
+    <img src="/logo/rys.png" alt="rys logo" width="50%"/>
 </p>
 
 <h1 align="center">Rys programming language</h1>
