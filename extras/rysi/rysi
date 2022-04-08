@@ -21,7 +21,7 @@ interpreter_help() {
     echo >&2
 
     log 'Interpreter commands:'
-    log '  .quit                Quits the interpreter'
+    log '  .quit, .exit         Quits the interpreter'
     log '  .clear               Clear screen'
 }
 
@@ -50,7 +50,7 @@ main() {
         case "$rys" in
         .*)
             case "$rys" in
-            .quit) break ;;
+            .quit | .exit) break ;;
             .clear) clear ;;
             .help) interpreter_help ;;
             .*) error "Invalid interpreter command: $rys" ;;
