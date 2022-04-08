@@ -1,0 +1,83 @@
+#!/usr/bin/env sh
+
+export RYSI_VERSION='0.0.1'
+
+error() { echo " ** ERROR: $1" >&2; }
+log() { echo "   $1" >&2; }
+
+interpreter_help() {
+    log 'Rys semi-interpreter help'
+
+    echo >&2
+
+    log 'Optional dependencies:'
+    log '  rlwrap               GNU readline support'
+
+    echo >&2
+
+    log 'Interpreter comments:'
+    log '  @ This is a comment'
+
+    echo >&2
+
+    log 'Interpreter commands:'
+    log '  .quit                Quits the interpreter'
+    log '  .clear               Clear screen'
+}
+
+main() {
+    set -e
+
+    if command -v rlwrap >/dev/null && [ ! "$NORL" ]; then
+        NORL=1 RLWRAP_HOME="$HOME/.cache" rlwrap "$0" -H rysi_history -s "${HISTSIZE-:500}"
+        exit
+    fi
+
+    cd /tmp
+
+    echo "   Rys semi-interpreter version $RYSI_VERSION"
+    echo '         Type .help for help'
+    echo
+
+    while true; do
+        rm -f rysi* rysbuild.log
+
+        printf ' * RyS: '
+        read -r rys
+
+        echo
+
+        case "$rys" in
+        .*)
+            case "$rys" in
+            .quit) break ;;
+            .clear) clear ;;
+            .help) interpreter_help ;;
+            .*) error "Invalid interpreter command: $rys" ;;
+            esac
+            ;;
+
+        @*) ;; # Comment
+
+        *)
+            if [ "$rys" ]; then
+                echo "$rys 0 exit" >rysi.rys
+
+                unset is_error
+
+                {
+                    "${rysc:-rysc}" rysi.rys -linux-elf64-x86_64-nasm 2>&1 || is_error=1
+                } >rysbuild.log
+
+                [ "$is_error" ] && { error 'Rys compiler error:' && { cat /tmp/rysbuild.log && echo; } >&2 && continue; }
+
+                ./rysi || echo " @ Program exited with code $?" >&2
+            fi
+            ;;
+        esac
+
+        echo
+    done
+}
+
+[ "$RYSI_AS_LIB" ] || main "$@"

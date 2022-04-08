@@ -34,6 +34,7 @@ class OperatorType(Enum):
     MULTIPLY = auto()
     DIVIDE = auto()
     MODULO = auto()
+    EXPONENT = auto()
 
 
 class AsmFeatures(Enum):
@@ -142,7 +143,7 @@ def type_to_str(r_type: RysType) -> str:
 assert len(TokenType) == 7, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
-assert len(OperatorType) == 5, "Unhandled operator types in AST generation"
+assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
 
 
 def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
@@ -253,6 +254,8 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(TokenType.OPERATOR, OperatorType.DIVIDE)
                     elif token == "%":
                         yield new_token(TokenType.OPERATOR, OperatorType.MODULO)
+                    elif token == "**":
+                        yield new_token(TokenType.OPERATOR, OperatorType.EXPONENT)
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -268,7 +271,7 @@ assert len(RysType) == 2, "Unhandled types in assembly generation"
 assert (
     len(AsmFeatures) == 3
 ), "Unhandled asm features in generate_x86_64_nasm_assembly_linux()"
-assert len(OperatorType) == 5, "Unhandled operator types in assembly generation"
+assert len(OperatorType) == 6, "Unhandled operator types in assembly generation"
 
 
 def generate_x86_64_nasm_assembly_linux(
@@ -340,27 +343,80 @@ def generate_x86_64_nasm_assembly_linux(
                 value1, _ = asm_stack.pop()
                 value2, _ = asm_stack.pop()
 
-                asm_stack.append((value1 + value2, RysType.INT))
+                final = value1 + value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MINUS:
                 value1, _ = asm_stack.pop()
                 value2, _ = asm_stack.pop()
 
-                asm_stack.append((value1 - value2, RysType.INT))
+                final = value1 - value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MULTIPLY:
                 value1, _ = asm_stack.pop()
                 value2, _ = asm_stack.pop()
 
-                asm_stack.append((value1 * value2, RysType.INT))
+                final = value1 * value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.DIVIDE:
                 value1, _ = asm_stack.pop()
                 value2, _ = asm_stack.pop()
 
-                asm_stack.append((value1 // value2, RysType.INT))
+                final = value1 // value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MODULO:
                 value1, _ = asm_stack.pop()
                 value2, _ = asm_stack.pop()
 
-                asm_stack.append((value1 % value2, RysType.INT))
+                final = value1 % value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
+            elif token.t_value == OperatorType.EXPONENT:
+                value1, _ = asm_stack.pop()
+                value2, _ = asm_stack.pop()
+
+                final = value1**value2
+
+                if final > 2**64:
+                    tk_die(
+                        f"{type_to_str(RysType.INT)} {final!r} does not fit into 64 bits",
+                        token,
+                    )
+
+                asm_stack.append((final, RysType.INT))
             else:
                 tk_die(f"Unknown operator: {token.t_value}", token)
         elif token.t_type == TokenType.INSTRUCTION:
@@ -533,7 +589,7 @@ def parse_args() -> tuple[str, str]:
 assert len(TokenType) == 7, "Unhandled token types in type checking"
 assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
-assert len(OperatorType) == 5, "Unhandled operator types in type checking"
+assert len(OperatorType) == 6, "Unhandled operator types in type checking"
 
 
 def type_check_ast(
@@ -767,6 +823,24 @@ def type_check_ast(
                     )
 
                 stack.append((RysType.INT, modulo_value1 % modulo_value2))
+            elif token.t_value == OperatorType.EXPONENT:
+                exponent_value1_type, exponent_value1 = stack.pop()
+
+                if exponent_value1_type != RysType.INT:
+                    tk_die(
+                        f"** expected {type_to_str(RysType.INT)} on the stack as the first value, but got {type_to_str(exponent_value1_type)}",
+                        token,
+                    )
+
+                exponent_value2_type, exponent_value2 = stack.pop()
+
+                if exponent_value2_type != RysType.INT:
+                    tk_die(
+                        f"** expected {type_to_str(RysType.INT)} on the stack as the second value, but got {type_to_str(exponent_value2_type)}",
+                        token,
+                    )
+
+                stack.append((RysType.INT, exponent_value1 % exponent_value2))
             else:
                 tk_die(
                     f"Unknown operator: {token.t_value}",

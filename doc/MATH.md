@@ -1,12 +1,13 @@
 # Math
 
-Rys programming language has 5 arithmetic operators:
+Rys programming language has 6 arithmetic operators:
 
 -   `+` (plus) -- Add two numbers
 -   `-` (minus) -- Subtract two numbers
 -   `*` (multiply) -- Multiply two numbers
 -   `/` (divide) -- Divide two numbers
 -   `%` (modulo) -- Return two number division remainder
+-   `**` (exponent) -- Raise one number to the power of another
 
 Rys math is only precise up to 0th decimal place,
 I.e. the full part
