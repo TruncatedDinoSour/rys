@@ -1,15 +1,22 @@
-# Rys
+<p align="center">
+    <img src="logo/rys.png" alt="rys logo"/>
+</p>
 
-> A reverse polish notation, stack based, concatinative,
-> compiled programming language
+---
+
+<h1 align="center">Rys programming language</h1>
+
+<i align="center">
+A reverse polish notation, stack based, concatinative, compiled programming language
+</i>
 
 ## Requirements
 
-- `ld` linker
-- `nasm` assembly compiler
-- `python3.8` and up
-- Python `typing`
-- Linux
+-   `ld` linker
+-   `nasm` assembly compiler
+-   `python3.8` and up
+-   Python `typing`
+-   Linux
 
 ## Note
 
@@ -19,13 +26,13 @@ want to get rid of it as fast as I can <3
 
 ## Project structure
 
-- [doc](/doc) -- The documentation
-- [editor](/editor) -- Editor support
-- [examples](/examples) -- Rys code examples
-- [scripts](/scrips) -- Where scripts go
-- [src](/src) -- Main source code
-- [tests](/tests) -- Passing tests
-- [tests_fail](/tests_fail) -- Purposely failing tests
+-   [doc](/doc) -- The documentation
+-   [editor](/editor) -- Editor support
+-   [examples](/examples) -- Rys code examples
+-   [scripts](/scrips) -- Where scripts go
+-   [src](/src) -- Main source code
+-   [tests](/tests) -- Passing tests
+-   [tests_fail](/tests_fail) -- Purposely failing tests
 
 ## Examples
 
@@ -37,4 +44,4 @@ All in [doc](/doc) folder
 
 ## Editor support
 
-- [ViM](/editor/rys.vim)
+-   [ViM](/editor/rys.vim)
