@@ -6,9 +6,9 @@
 
 <h1 align="center">Rys programming language</h1>
 
-<i align="center">
-A reverse polish notation, stack based, concatinative, compiled programming language
-</i>
+<p align="center">
+    <i>A reverse polish notation, stack based, concatinative, compiled programming language</i>
+</p>
 
 ## Requirements
 
