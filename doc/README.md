@@ -5,6 +5,7 @@
 - [Drop keyword](/doc/md/DROP.md)
 - [Exit instruction](/doc/md/EXIT.md)
 - [Math/arithmetic operators](/doc/md/MATH.md)
+- [Nop keyword](/doc/md/NOP.md)
 - [My notes](/doc/md/NOTES.md)
 - [Stacksz keyword](/doc/md/STACKSZ.md)
 - [Syntax definition](/doc/md/SYNTAX.md)
