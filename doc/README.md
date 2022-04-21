@@ -1,6 +1,7 @@
 # Documentation index
 - [Assembly keyword](/doc/md/ASSEMBLY.md)
 - [Charz keyword](/doc/md/CHARZ.md)
+- [Clear keyword](/doc/md/CLEAR.md)
 - [Cpy keyword](/doc/md/CPY.md)
 - [Drop keyword](/doc/md/DROP.md)
 - [Exit instruction](/doc/md/EXIT.md)

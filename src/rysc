@@ -32,6 +32,7 @@ class TokenType(Enum):
     STACKSZ = auto()
     CPY = auto()
     NOP = auto()
+    CLEAR = auto()
 
 
 class OperatorType(Enum):
@@ -146,7 +147,7 @@ def type_to_str(r_type: RysType) -> str:
     return type_name
 
 
-assert len(TokenType) == 10, "Unhandled token types in AST generation"
+assert len(TokenType) == 11, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
@@ -268,6 +269,8 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(TokenType.STACKSZ, None)
                     elif token == "nop":
                         yield new_token(TokenType.NOP, None)
+                    elif token == "clear":
+                        yield new_token(TokenType.CLEAR, None)
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -276,7 +279,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
 
 assert (
-    len(TokenType) == 10
+    len(TokenType) == 11
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
@@ -441,6 +444,8 @@ def generate_x86_64_nasm_assembly_linux(
             asm_stack.append((len(asm_stack), RysType.INT))
         elif token.t_type == TokenType.NOP:
             start_lb.append("    nop")
+        elif token.t_type == TokenType.CLEAR:
+            asm_stack = []
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
@@ -606,7 +611,7 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
-assert len(TokenType) == 10, "Unhandled token types in type checking"
+assert len(TokenType) == 11, "Unhandled token types in type checking"
 assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 assert len(OperatorType) == 6, "Unhandled operator types in type checking"
@@ -969,6 +974,14 @@ def type_check_ast(
             tmp_stack = []
         elif token.t_type == TokenType.NOP:
             pass
+        elif token.t_type == TokenType.CLEAR:
+            if len(stack) == 0:
+                tk_die(
+                    "Clear: stack is empty, nothing to clear",
+                    token,
+                )
+
+            stack.clear()
 
         yield token
 
