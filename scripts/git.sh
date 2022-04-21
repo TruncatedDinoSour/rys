@@ -8,7 +8,7 @@ main() {
 
     git add -A
     git commit -sa
-    git push -u origin main
+    git push -u origin "$(git rev-parse --abbrev-ref HEAD)"
 }
 
 main "$@"
