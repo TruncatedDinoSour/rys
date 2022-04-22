@@ -721,7 +721,7 @@ def type_check_ast(
                 if len(stack) < 1:
                     tk_die("Exit code not supplied", token)
 
-                exit_code_type, _ = stack.pop()
+                exit_code_type = stack.pop()[0]
                 if exit_code_type != RysType.INT:
                     tk_die(
                         f"Exit expected {type_to_str(RysType.INT)} on the stack as exit code, but got {type_to_str(exit_code_type)}",
