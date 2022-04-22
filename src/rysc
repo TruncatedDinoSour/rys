@@ -1018,7 +1018,7 @@ def type_check_ast(
 
                 if not os.path.isfile(include_file):
                     tk_die(
-                        f"Include: {include_file} is not a file/does not exist",
+                        f"Include: {include_file!r} is not a file/does not exist",
                         token,
                     )
 
@@ -1031,21 +1031,30 @@ assert len(ProceesableToken) == 1, "Unhandled processable token types in preproc
 
 
 def preprocess_rys_ast(
-    ast: Generator[Token, None, None]
+    ast: Generator[Token, None, None], ast_tokens: Optional[list[Token]] = None
 ) -> Generator[Token, None, None]:
     msg("Preprocessing AST...", "PROCESS")
-    tokens: list[Token] = []
+    tokens: list[Token] = ast_tokens or []
 
     for t_idx, token in enumerate(ast):
-        vprint(f"Preprocessing token #{t_idx}: {token.t_type}[{token.t_value}]")
+        vprint(
+            f"Preprocessing token #{t_idx}: {token.t_type}[{token.t_value}] for file {token.t_pos[-1]!r}"
+        )
         tokens.append(token)
 
         if token.t_type != TokenType.PROCCESSABLE:
             yield token
             continue
 
+        tokens.pop(t_idx)
+
         if token.t_value == ProceesableToken.PROC_INCLUDE:
-            for token in rys_to_ast(tokens[t_idx - 1].t_value):
+            yield Token(TokenType.PUSH_INT, token.t_pos, 1)
+            yield Token(TokenType.DROP, token.t_pos, None)
+
+            for token in preprocess_rys_ast(
+                type_check_ast(rys_to_ast(tokens.pop(t_idx - 1).t_value)), tokens
+            ):
                 yield token
         else:
             tk_die(f"Unknown proccesable token type: {token.t_value}", token)

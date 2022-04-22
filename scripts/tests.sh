@@ -10,7 +10,8 @@ main() {
 
     echo 'GENERATE include/hello_world.rys'
     # shellcheck disable=SC2028
-    echo '"hello world\n" 1 writefd clear' >include/hello_world.rys
+    echo '"hello world\n" 1 writefd 1 drop' >include/hello_world_b.rys
+    echo '"include/hello_world_b.rys" include' >include/hello_world.rys
 
     for rys_test in ../"${TESTDIR:-tests}"/*; do
         {

@@ -7,14 +7,14 @@ which includes a file
 
 -   file_path: A string which is well... The file path
 
-It returns the file included
+It returns nothing
 
 `Include` example:
 
 #### a.rys
 
 ```lua
-"hello world" 1 writefd clear
+"hello world" 1 writefd 1 drop
 ```
 
 #### b.rys
