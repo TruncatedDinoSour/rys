@@ -1256,7 +1256,7 @@ def main() -> int:
 
         vprint("Added default assembly and linker flags")
 
-        asm_flags = f"-w+error -felf64 {asm_name} -o '{obj_name}' "
+        asm_flags = f"-w+error -felf64 '{asm_name}' -o '{obj_name}' "
         ld_flags = f"--require-defined=_start -nostdlib -o '{bin_name}' '{obj_name}' "
 
         if "debug_flags" in RYS_ARGS:
