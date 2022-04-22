@@ -9,7 +9,9 @@ main() {
     printf '****** Press enter to start failing tests testing ******'
     read -r
 
-    if ! NOFAIL=1 TESTDIR=tests_fail ./scripts/tests.sh "$@"; then
+    export NOFAIL=1 TESTDIR=tests_fail
+
+    if ! ./scripts/tests.sh "$@"; then
         echo '!! TESTS DID NOT PASS'
         exit 1
     fi
@@ -17,7 +19,9 @@ main() {
     printf '****** Press enter to start example testing ******'
     read -r
 
-    if ! TESTDIR=examples ./scripts/tests.sh "$@"; then
+    export TESTDIR=examples
+
+    if ! ./scripts/tests.sh "$@"; then
         echo '!! TESTS DID NOT PASS'
         exit 1
     fi

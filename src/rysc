@@ -317,8 +317,6 @@ def generate_x86_64_nasm_assembly_linux(
     1 -- data
     """
 
-    vprint("Generaing assembly for linux x86_64 nasm")
-
     if do_msg:
         msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
@@ -337,8 +335,13 @@ def generate_x86_64_nasm_assembly_linux(
 
     for token in ast:
         iname: str = f"_{start_iname}_{token.t_pos[0]}_{token.t_pos[1]}"
+        vprint(f"Parsing token {iname!r}")
 
         if token.t_type == TokenType.PUSH_INT:
+            vprint(
+                f"Checking if {type_to_str(RysType.INT)} {token.t_value!r} fits into 64 bits"
+            )
+
             if token.t_value > MAX_64:
                 tk_die(
                     f"{type_to_str(RysType.INT)} {token.t_value!r} does not fit into 64 bits",
@@ -347,6 +350,8 @@ def generate_x86_64_nasm_assembly_linux(
 
             asm_stack.append((token.t_value, RysType.INT))
         elif token.t_type == TokenType.PUSH_STR:
+            vprint(f"Pushing {type_to_str(RysType.STR)} {token.t_value!r} onto stack")
+
             asm_stack.append(
                 (
                     token.t_value.encode("raw_unicode_escape", errors="ignore").decode(
@@ -356,26 +361,43 @@ def generate_x86_64_nasm_assembly_linux(
                 )
             )
         elif token.t_type == TokenType.DROP:
-            for _ in range(asm_stack.pop()[0]):
+            drop_ammount = asm_stack.pop()[0]
+            vprint(f"Droppping {drop_ammount} of elements from the stack")
+
+            for _ in range(drop_ammount):
                 asm_stack.pop()
         elif token.t_type == TokenType.ASSEMBLY:
-            for _ in range(asm_stack.pop()[0]):
+            assembly_ammount: int = asm_stack.pop()[0]
+            vprint(f"Injecting extra {assembly_ammount} lines of assembly code")
+
+            for _ in range(assembly_ammount):
                 start_lb.append(asm_stack.pop()[0])
         elif token.t_type == TokenType.CHARZ:
-            for _ in range(asm_stack.pop()[0]):
+            charz_ammount = asm_stack.pop()[0]
+            vprint(
+                f"Converting {charz_ammount} of charcodes into {type_to_str(RysType.STR)}"
+            )
+
+            for _ in range(charz_ammount):
                 tmp_stack.append(chr(asm_stack.pop()[0]))
 
             asm_stack.append(("".join(tmp_stack), RysType.STR))
+            tmp_stack = []
         elif token.t_type == TokenType.CPY:
-            for idx in range(asm_stack.pop()[0]):
+            cpy_ammount = asm_stack.pop()[0]
+            vprint(f"Copying {cpy_ammount} items from the stack")
+
+            for idx in range(cpy_ammount):
                 tmp_stack.append(asm_stack[-(idx + 1)])
 
             asm_stack += tmp_stack[::-1]
             tmp_stack = []
         elif token.t_type == TokenType.OPERATOR:
             if token.t_value == OperatorType.PLUS:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Summing {value1} and {value2}")
 
                 final = value1 + value2
 
@@ -387,8 +409,10 @@ def generate_x86_64_nasm_assembly_linux(
 
                 asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MINUS:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Subtracting {value2} from {value1}")
 
                 final = value1 - value2
 
@@ -400,8 +424,10 @@ def generate_x86_64_nasm_assembly_linux(
 
                 asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MULTIPLY:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Multipying {value1} {value2} times")
 
                 final = np.multiply(value1, value2)
 
@@ -413,8 +439,10 @@ def generate_x86_64_nasm_assembly_linux(
 
                 asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.DIVIDE:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Dividing {value1} into {value2} parts")
 
                 final = np.floor_divide(value1, value2)
 
@@ -426,8 +454,10 @@ def generate_x86_64_nasm_assembly_linux(
 
                 asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.MODULO:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Calculating {value1} modulo of {value2}")
 
                 final = np.mod(value1, value2)
 
@@ -439,8 +469,10 @@ def generate_x86_64_nasm_assembly_linux(
 
                 asm_stack.append((final, RysType.INT))
             elif token.t_value == OperatorType.POWER:
-                value1, _ = asm_stack.pop()
-                value2, _ = asm_stack.pop()
+                value1 = asm_stack.pop()[0]
+                value2 = asm_stack.pop()[0]
+
+                vprint(f"Raising {value1} to the power of {value2}")
 
                 final = np.power(value1, value2)
 
@@ -454,16 +486,27 @@ def generate_x86_64_nasm_assembly_linux(
             else:
                 tk_die(f"Unknown operator: {token.t_value}", token)
         elif token.t_type == TokenType.STACKSZ:
+            vprint("Pushing stack size onto the stack")
             asm_stack.append((len(asm_stack), RysType.INT))
         elif token.t_type == TokenType.NOP:
+            vprint("Adding a `nop` instruction to _start label")
             start_lb.append("    nop")
         elif token.t_type == TokenType.CLEAR:
+            vprint("Clearing the stack")
             asm_stack = []
         elif token.t_type == TokenType.PROCCESSABLE:
+            vprint(
+                "This is most likely a compiler bug, processable token detected in generate_x86_64_nasm_assembly_linux()"
+            )
             tk_die(f"This token should be handled in preprocessing: {token}", token)
         elif token.t_type == TokenType.INSTRUCTION:
+            vprint("Generating assembly for instruction")
+
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
+                vprint("Adding a call to _std_rys_exit in _start label")
                 start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
+
+                vprint("Adding EXIT feature to assembly features")
                 asm_features.add(AsmFeatures.EXIT)
             elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
                 writefd_fd, _, writefd_string, writefd_string_type = (
@@ -472,6 +515,8 @@ def generate_x86_64_nasm_assembly_linux(
                 )
 
                 if writefd_string_type == RysType.STR:
+                    vprint("Adding call to _std_rys_writefd to start label")
+
                     start_lb += [
                         f"    mov rdi, {writefd_fd}",
                         f"    mov rsi, str{iname}",
@@ -488,22 +533,28 @@ def generate_x86_64_nasm_assembly_linux(
                         f"str_len{iname}: equ $-str{iname}",
                     ]
 
+                    vprint("Adding WRITEFD feature to assembly features")
                     asm_features.add(AsmFeatures.WRITEFD)
                 elif writefd_string_type == RysType.INT:
+                    vprint("Adding call to _std_rys_writefd_int to start label")
+
                     start_lb += [
                         f"    mov rdi, {writefd_fd}",
                         f"    mov edi, {writefd_string}",
                         r"    call _std_rys_writefd_int",
                     ]
 
+                    vprint("Adding WRITEFD_INT feature to assembly features")
                     asm_features.add(AsmFeatures.WRITEFD_INT)
 
+                vprint("Pushing the string length onto the stack")
                 asm_stack.append((len(str(writefd_string)), RysType.INT))
             else:
                 tk_die(f"Unknown instruction: {token.t_value}", token)
         else:
             tk_die(f"Unknown token: {token.t_type}", token)
 
+    vprint("Checking for unhandled stack items...")
     if asm_stack:
         msg(f"{len(asm_stack)} item(s) left on the stack:")
 
@@ -525,6 +576,7 @@ def generate_x86_64_nasm_assembly_linux(
         sys.exit(EXIT_ERR)
 
     if full:
+        vprint("Generating _start label header")
         yield "global _start", 0
         yield "_start:", 0
 
@@ -566,9 +618,7 @@ def usage() -> int:
         "    RYS_OFLAGS                  -- flags to pass to output binary if -run is passed",
     ]
 
-    for line in help_text:
-        sys.stderr.write(line + "\n")
-
+    print("\n".join(help_text), file=sys.stderr)
     return EXIT_ERR
 
 
@@ -623,6 +673,7 @@ def parse_args() -> tuple[str, str]:
         else:
             sys.exit(msg(f"Unknown argument: {arg!r}"))
 
+    vprint("Finished parsing arguments")
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
@@ -656,11 +707,11 @@ def type_check_ast(
 
     for token in ast:
         if token.t_type == TokenType.PUSH_INT:
+            vprint(f"Type checking stack: push {type_to_str(RysType.INT)}")
             stack.append((RysType.INT, token.t_value))
-            vprint("Type checking stack: push INT")
         elif token.t_type == TokenType.PUSH_STR:
+            vprint(f"Type checking stack: push {type_to_str(RysType.STR)}")
             stack.append((RysType.STR, token.t_value))
-            vprint("Type checking stack: push STR")
         elif token.t_type == TokenType.INSTRUCTION:
             vprint("Found instruction")
 
@@ -682,7 +733,8 @@ def type_check_ast(
                 if len(stack) < 2:
                     tk_die("Not enough arguments for writefd", token)
 
-                fd_type, _ = stack.pop()
+                vprint("Checking file descriptor type")
+                fd_type = stack.pop()[0]
 
                 if fd_type != RysType.INT:
                     tk_die(
@@ -690,6 +742,7 @@ def type_check_ast(
                         token,
                     )
 
+                vprint("Checking string compatibility")
                 string_type, string = stack.pop()
 
                 if string_type not in (RysType.STR, RysType.INT):
@@ -710,6 +763,7 @@ def type_check_ast(
             if len(stack) < 2:
                 tk_die("Not enough arguments for drop", token)
 
+            vprint("Checking drop ammount type")
             drop_ammount_type, drop_ammount = stack.pop()
 
             if drop_ammount_type != RysType.INT:
@@ -718,18 +772,23 @@ def type_check_ast(
                     token,
                 )
 
+            vprint("Checking stack size")
             if len(stack) < drop_ammount:
                 tk_die(
                     f"Drop: {drop_ammount} is bigger than the elements on the stack: {len(stack)}",
                     token,
                 )
 
+            vprint(f"Dropping {drop_ammount} elements from the type checking stack")
             for _ in range(drop_ammount):
                 stack.pop()
         elif token.t_type == TokenType.ASSEMBLY:
+            vprint("Type checking assembly")
+
             if len(stack) < 2:
                 tk_die("Not enough arguments for drop", token)
 
+            vprint("Checking assembly ammount")
             assembly_ammount_type, assembly_ammount = stack.pop()
 
             if assembly_ammount_type != RysType.INT:
@@ -738,14 +797,16 @@ def type_check_ast(
                     token,
                 )
 
+            vprint("Checking stack size")
             if len(stack) < assembly_ammount:
                 tk_die(
                     f"Assembly: {assembly_ammount} is bigger than the elements on the stack: {len(stack)}",
                     token,
                 )
 
+            vprint("Cheking assembly lines")
             for _ in range(assembly_ammount):
-                assembly_line_type, _ = stack.pop()
+                assembly_line_type = stack.pop()[0]
 
                 if assembly_line_type != RysType.STR:
                     tk_die(
@@ -753,6 +814,9 @@ def type_check_ast(
                         token,
                     )
         elif token.t_type == TokenType.CHARZ:
+            vprint("Type checking charz")
+
+            vprint("Checking charz ammount")
             charz_ammount_type, charz_ammount = stack.pop()
 
             if charz_ammount_type != RysType.INT:
@@ -761,12 +825,14 @@ def type_check_ast(
                     token,
                 )
 
+            vprint("Checking stack size")
             if len(stack) < charz_ammount:
                 tk_die(
                     f"Charz: {charz_ammount} is bigger than the elements on the stack: {len(stack)}",
                     token,
                 )
 
+            vprint(f"Checking {charz_ammount} charcodes")
             for _ in range(charz_ammount):
                 charz_charcode_type, charz_charcode = stack.pop()
 
@@ -778,15 +844,22 @@ def type_check_ast(
 
                 tmp_stack.append(chr(charz_charcode))
 
+            vprint(f"Pushing {type_to_str(RysType.STR)} onto the typechecking stack")
             stack.append((RysType.STR, "".join(tmp_stack)))
             tmp_stack = []
         elif token.t_type == TokenType.OPERATOR:
+            vprint("Found operator")
+
             if token.t_value == OperatorType.PLUS:
+                vprint("Type checking plus operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for + on the stack",
                         token,
                     )
+
+                vprint("Type checking plus operator's value 1")
 
                 plus_value1_type, plus_value1 = stack.pop()
 
@@ -796,6 +869,8 @@ def type_check_ast(
                         token,
                     )
 
+                vprint("Type checking plus operator's value 2")
+
                 plus_value2_type, plus_value2 = stack.pop()
 
                 if plus_value2_type != RysType.INT:
@@ -804,13 +879,18 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append((RysType.INT, plus_value1 + plus_value2))
             elif token.t_value == OperatorType.MINUS:
+                vprint("Type checking minus operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for - on the stack",
                         token,
                     )
+
+                vprint("Type checking minus operator's value 1")
 
                 minus_value1_type, minus_value1 = stack.pop()
 
@@ -820,6 +900,8 @@ def type_check_ast(
                         token,
                     )
 
+                vprint("Type checking minus operator's value 2")
+
                 minus_value2_type, minus_value2 = stack.pop()
 
                 if minus_value2_type != RysType.INT:
@@ -828,8 +910,11 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append((RysType.INT, minus_value1 - minus_value2))
             elif token.t_value == OperatorType.MULTIPLY:
+                vprint("Type checking multiply operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for * on the stack",
@@ -838,11 +923,15 @@ def type_check_ast(
 
                 multiply_value1_type, multiply_value1 = stack.pop()
 
+                vprint("Type checking multiply operator's value 1")
+
                 if multiply_value1_type != RysType.INT:
                     tk_die(
                         f"* expected {type_to_str(RysType.INT)} on the stack as the first value, but got {type_to_str(multiply_value1_type)}",
                         token,
                     )
+
+                vprint("Type checking multiply operator's value 2")
 
                 multiply_value2_type, multiply_value2 = stack.pop()
 
@@ -852,15 +941,20 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append(
                     (RysType.INT, np.multiply(multiply_value1, multiply_value2))
                 )
             elif token.t_value == OperatorType.DIVIDE:
+                vprint("Type checking divide operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for / on the stack",
                         token,
                     )
+
+                vprint("Type checking divide operator's value 1")
 
                 divide_value1_type, divide_value1 = stack.pop()
 
@@ -869,6 +963,8 @@ def type_check_ast(
                         f"/ expected {type_to_str(RysType.INT)} on the stack as the first value, but got {type_to_str(divide_value1_type)}",
                         token,
                     )
+
+                vprint("Type checking divide operator's value 2")
 
                 divide_value2_type, divide_value2 = stack.pop()
 
@@ -884,15 +980,20 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append(
                     (RysType.INT, np.floor_divide(divide_value1, divide_value2))
                 )
             elif token.t_value == OperatorType.MODULO:
+                vprint("Type checking modulo operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for % on the stack",
                         token,
                     )
+
+                vprint("Type checking modulo operator's value 1")
 
                 modulo_value1_type, modulo_value1 = stack.pop()
 
@@ -901,6 +1002,8 @@ def type_check_ast(
                         f"% expected {type_to_str(RysType.INT)} on the stack as the first value, but got {type_to_str(modulo_value1_type)}",
                         token,
                     )
+
+                vprint("Type checking modulo operator's value 2")
 
                 modulo_value2_type, modulo_value2 = stack.pop()
 
@@ -916,13 +1019,18 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append((RysType.INT, np.mod(modulo_value1, modulo_value2)))
             elif token.t_value == OperatorType.POWER:
+                vprint("Type checking power operator")
+
                 if len(stack) < 2:
                     tk_die(
                         "Not enough arguments for ** on the stack",
                         token,
                     )
+
+                vprint("Type checking power operator's value 1")
 
                 power_value1_type, power_value1 = stack.pop()
 
@@ -938,6 +1046,8 @@ def type_check_ast(
                         token,
                     )
 
+                vprint("Type checking power operator's value 2")
+
                 power_value2_type, power_value2 = stack.pop()
 
                 if power_value2_type != RysType.INT:
@@ -952,6 +1062,7 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Pushing {type_to_str(RysType.INT)} onto the stack")
                 stack.append(
                     (
                         RysType.INT,
@@ -966,11 +1077,16 @@ def type_check_ast(
                     token,
                 )
         elif token.t_type == TokenType.STACKSZ:
+            vprint("Type checking stacksz")
+            vprint(f"Pushing {type_to_str(RysType.INT)} (stack size) onto the stack")
             stack.append((RysType.INT, len(stack)))
         elif token.t_type == TokenType.CPY:
+            vprint("Type checking cpy")
+
             if len(stack) < 2:
                 tk_die("Not enough arguments for cpy", token)
 
+            vprint("Type checking cpy ammount")
             cpy_ammount_type, cpy_ammount = stack.pop()
 
             if cpy_ammount_type != RysType.INT:
@@ -979,34 +1095,47 @@ def type_check_ast(
                     token,
                 )
 
+            vprint("Checking stack length")
+
             if cpy_ammount > len(stack):
                 tk_die(
                     f"Cpy: cannot copy more than {len(stack)} items, the whole length of the stack, cpy asked for {cpy_ammount}",
                     token,
                 )
 
+            vprint(f"Copying {cpy_ammount} of elements on the stack")
             for idx in range(cpy_ammount):
                 tmp_stack.append(stack[-(idx + 1)])
 
             stack += tmp_stack[::-1]
             tmp_stack = []
         elif token.t_type == TokenType.NOP:
+            vprint("Type checking nop")
             pass
         elif token.t_type == TokenType.CLEAR:
+            vprint("Type checking clear")
+
             if len(stack) == 0:
                 tk_die(
                     "Clear: stack is empty, nothing to clear",
                     token,
                 )
 
+            vprint("Clearing the stack")
             stack.clear()
         elif token.t_type == TokenType.PROCCESSABLE:
+            vprint("Foind a processable token")
+
             if token.t_value == ProceesableToken.PROC_INCLUDE:
+                vprint("Type checking include")
+
                 if len(stack) < 1:
                     tk_die(
                         "Inlude: 'file' argument is missing",
                         token,
                     )
+
+                vprint("Type checking include file")
 
                 include_file_type, include_file = stack.pop()
 
@@ -1016,12 +1145,15 @@ def type_check_ast(
                         token,
                     )
 
+                vprint(f"Checking if {include_file!r} exists")
+
                 if not os.path.isfile(include_file):
                     tk_die(
                         f"Include: {include_file!r} is not a file/does not exist",
                         token,
                     )
 
+                vprint(f"Gerating AST and typechecking {include_file!r}")
                 type_check_ast(rys_to_ast(include_file), False, stack)
 
         yield token
@@ -1031,9 +1163,15 @@ assert len(ProceesableToken) == 1, "Unhandled processable token types in preproc
 
 
 def preprocess_rys_ast(
-    ast: Generator[Token, None, None], ast_tokens: Optional[list[Token]] = None
+    ast: Generator[Token, None, None],
+    ast_tokens: Optional[list[Token]] = None,
+    do_msg: bool = True,
 ) -> Generator[Token, None, None]:
-    msg("Preprocessing AST...", "PROCESS")
+    vprint("Preprocessing an AST")
+
+    if do_msg:
+        msg("Preprocessing AST...", "PROCESS")
+
     tokens: list[Token] = ast_tokens or []
 
     for t_idx, token in enumerate(ast):
@@ -1049,9 +1187,13 @@ def preprocess_rys_ast(
         tokens.pop(t_idx)
 
         if token.t_value == ProceesableToken.PROC_INCLUDE:
+            vprint("Preprocessing include")
+
+            vprint("Adding '1 drop' to ast")
             yield Token(TokenType.PUSH_INT, token.t_pos, 1)
             yield Token(TokenType.DROP, token.t_pos, None)
 
+            vprint("Preprocessing, type checking and generating ast for included file")
             for token in preprocess_rys_ast(
                 type_check_ast(rys_to_ast(tokens.pop(t_idx - 1).t_value)), tokens
             ):
@@ -1090,6 +1232,9 @@ def main() -> int:
     asm_flags: str = ""
 
     if "format_linux_elf64_x86_64_nasm" in RYS_ARGS:
+        vprint(
+            "Format detected to be format_linux_elf64_x86_64_nasm, generating assembly"
+        )
         asm = generate_x86_64_nasm_assembly_linux(ast)
 
         if "typing" in RYS_ARGS:
@@ -1109,16 +1254,22 @@ def main() -> int:
         asmc = "nasm"
         linker = "ld"
 
+        vprint("Added default assembly and linker flags")
+
         asm_flags = f"-w+error -felf64 {asm_name} -o '{obj_name}' "
         ld_flags = f"--require-defined=_start -nostdlib -o '{bin_name}' '{obj_name}' "
 
         if "debug_flags" in RYS_ARGS:
+            vprint("Adding debug linker and assembly flags")
+
             ld_flags += (
                 "-O0 --compress-debug-sections=none --eh-frame-hdr --gc-sections"
             )
             asm_flags += "-g -gdwarf -O0"
 
         if "release_flags" in RYS_ARGS:
+            vprint("Adding release/optimisation linker and assembly flags")
+
             ld_flags += "-O3 -X -s -S"
             asm_flags += "-O3 -s"
     else:
@@ -1126,9 +1277,11 @@ def main() -> int:
         return usage()
 
     if os.environ.get("RYS_LD_FLAGS"):
+        vprint("Found user-set environment LD flags")
         ld_flags = os.environ.get("RYS_LD_FLAGS") or ""
 
     if os.environ.get("RYS_ASM_FLAGS"):
+        vprint("Found user-set environment ASM flags")
         asm_flags = os.environ.get("RYS_ASM_FLAGS") or ""
 
     ld_flags += f" {os.environ.get('RYS_USER_LD_FLAGS') or ''}"
@@ -1170,6 +1323,7 @@ def main() -> int:
         vprint(f"./'{bin_name}' {os.environ.get('RYS_OFLAGS') or ''}")
         os.system(f"./'{bin_name}' {os.environ.get('RYS_OFLAGS') or ''}")
 
+    vprint("Finished successfully")
     return 0
 
 

@@ -3,7 +3,7 @@
 set -xe
 
 main() {
-    ./scripts/full_tests.sh
+    ./scripts/full_tests.sh "$@"
     ./scripts/build_doc_index.sh
 
     git add -A
