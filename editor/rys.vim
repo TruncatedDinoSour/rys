@@ -52,6 +52,10 @@ syntax region rysString start=/\v"/ skip=/\v\\./ end=/\v"/ contains=rysEscape
 syntax keyword rysOperator + - * / % **
 
 
+" Semi-keywords
+syntax keyword rysSemikw include
+
+
 " Set highlights
 highlight default link rysTodos Todo
 highlight default link rysKeywords Keyword
@@ -61,6 +65,7 @@ highlight default link rysString String
 highlight default link rysEscape Special
 highlight default link rysNumber Number
 highlight default link rysOperator Operator
+highlight default link rysSemikw Define
 
 
 " Set syntax

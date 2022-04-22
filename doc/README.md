@@ -5,6 +5,7 @@
 - [Cpy keyword](/doc/md/CPY.md)
 - [Drop keyword](/doc/md/DROP.md)
 - [Exit instruction](/doc/md/EXIT.md)
+- [Include pre-processed keyword](/doc/md/INCLUDE.md)
 - [Math/arithmetic operators](/doc/md/MATH.md)
 - [Nop keyword](/doc/md/NOP.md)
 - [My notes](/doc/md/NOTES.md)

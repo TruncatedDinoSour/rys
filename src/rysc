@@ -33,6 +33,11 @@ class TokenType(Enum):
     CPY = auto()
     NOP = auto()
     CLEAR = auto()
+    PROCCESSABLE = auto()
+
+
+class ProceesableToken(Enum):
+    PROC_INCLUDE = auto()
 
 
 class OperatorType(Enum):
@@ -137,7 +142,7 @@ assert len(RysType) == 2, "Unhandled types in type-to-string"
 
 
 def type_to_str(r_type: RysType) -> str:
-    type_name = "Unknown"
+    type_name = f"Unknown ({r_type})"
 
     if r_type == RysType.INT:
         type_name = "integer"
@@ -147,10 +152,11 @@ def type_to_str(r_type: RysType) -> str:
     return type_name
 
 
-assert len(TokenType) == 11, "Unhandled token types in AST generation"
+assert len(TokenType) == 12, "Unhandled token types in AST generation"
 assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
+assert len(ProceesableToken) == 1, "Unhandled processable token types in AST generation"
 
 
 def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
@@ -271,6 +277,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(TokenType.NOP, None)
                     elif token == "clear":
                         yield new_token(TokenType.CLEAR, None)
+                    elif token == "include":
+                        yield new_token(
+                            TokenType.PROCCESSABLE, ProceesableToken.PROC_INCLUDE
+                        )
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -279,7 +289,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
 
 assert (
-    len(TokenType) == 11
+    len(TokenType) == 12
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
@@ -287,6 +297,9 @@ assert (
     len(AsmFeatures) == 3
 ), "Unhandled asm features in generate_x86_64_nasm_assembly_linux()"
 assert len(OperatorType) == 6, "Unhandled operator types in assembly generation"
+assert (
+    len(ProceesableToken) == 1
+), "Unhandled processable token types in nasm x86_64 linux assembly generation"
 
 
 def generate_x86_64_nasm_assembly_linux(
@@ -446,6 +459,8 @@ def generate_x86_64_nasm_assembly_linux(
             start_lb.append("    nop")
         elif token.t_type == TokenType.CLEAR:
             asm_stack = []
+        elif token.t_type == TokenType.PROCCESSABLE:
+            tk_die(f"This token should be handled in preprocessing: {token}", token)
         elif token.t_type == TokenType.INSTRUCTION:
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
@@ -490,7 +505,7 @@ def generate_x86_64_nasm_assembly_linux(
             tk_die(f"Unknown token: {token.t_type}", token)
 
     if asm_stack:
-        msg(f"{len(asm_stack)} items left on the stack:")
+        msg(f"{len(asm_stack)} item(s) left on the stack:")
 
         for val, typ in asm_stack:
             sys.stderr.write(f"  *  {val!r}{type_to_str(typ):>10s}\n")
@@ -611,14 +626,17 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
-assert len(TokenType) == 11, "Unhandled token types in type checking"
+assert len(TokenType) == 12, "Unhandled token types in type checking"
 assert len(InstructionType) == 2, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 assert len(OperatorType) == 6, "Unhandled operator types in type checking"
+assert len(ProceesableToken) == 1, "Unhandled processable token types in type checking"
 
 
 def type_check_ast(
-    ast: Generator[Token, None, None], do_msg: bool = True
+    ast: Generator[Token, None, None],
+    do_msg: bool = True,
+    tp_stack: Optional[list[tuple[RysType, Any]]] = None,
 ) -> Generator[Token, None, None]:
     if "no-typing" in RYS_ARGS:
         vprint("Not type-checking AST")
@@ -633,7 +651,7 @@ def type_check_ast(
     if do_msg:
         msg("Type checking program...", "INFO")
 
-    stack: list[tuple[RysType, Any]] = []
+    stack: list[tuple[RysType, Any]] = tp_stack or []
     tmp_stack: list[Any] = []
 
     for token in ast:
@@ -982,8 +1000,55 @@ def type_check_ast(
                 )
 
             stack.clear()
+        elif token.t_type == TokenType.PROCCESSABLE:
+            if token.t_value == ProceesableToken.PROC_INCLUDE:
+                if len(stack) < 1:
+                    tk_die(
+                        "Inlude: 'file' argument is missing",
+                        token,
+                    )
+
+                include_file_type, include_file = stack.pop()
+
+                if include_file_type != RysType.STR:
+                    tk_die(
+                        f"Inlude: 'file' argument is supposed to be {type_to_str(RysType.STR)}, not {type_to_str(include_file_type)}",
+                        token,
+                    )
+
+                if not os.path.isfile(include_file):
+                    tk_die(
+                        f"Include: {include_file} is not a file/does not exist",
+                        token,
+                    )
+
+                type_check_ast(rys_to_ast(include_file), False, stack)
 
         yield token
+
+
+assert len(ProceesableToken) == 1, "Unhandled processable token types in preprocessing"
+
+
+def preprocess_rys_ast(
+    ast: Generator[Token, None, None]
+) -> Generator[Token, None, None]:
+    msg("Preprocessing AST...", "PROCESS")
+    tokens: list[Token] = []
+
+    for t_idx, token in enumerate(ast):
+        vprint(f"Preprocessing token #{t_idx}: {token.t_type}[{token.t_value}]")
+        tokens.append(token)
+
+        if token.t_type != TokenType.PROCCESSABLE:
+            yield token
+            continue
+
+        if token.t_value == ProceesableToken.PROC_INCLUDE:
+            for token in rys_to_ast(tokens[t_idx - 1].t_value):
+                yield token
+        else:
+            tk_die(f"Unknown proccesable token type: {token.t_value}", token)
 
 
 def main() -> int:
@@ -1005,7 +1070,9 @@ def main() -> int:
     obj_name: str = bin_name
 
     asm: Generator[tuple[str, int], None, None]
-    ast: Generator[Token, None, None] = type_check_ast(rys_to_ast(sys.argv[1]))
+    ast: Generator[Token, None, None] = preprocess_rys_ast(
+        type_check_ast(rys_to_ast(sys.argv[1]))
+    )
 
     asmc: str
     linker: str

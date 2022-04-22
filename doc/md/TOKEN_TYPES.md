@@ -17,3 +17,7 @@ not by replacement, deletion or anything of sort
 ## Type
 
 A defined way to represent any data
+
+## Semi-keyword
+
+A keyword that is modified in compile time, for example in pre-processed
