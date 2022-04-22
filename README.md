@@ -27,6 +27,8 @@ want to get rid of it as fast as I can <3
 -   [doc](/doc) -- The documentation
 -   [editor](/editor) -- Editor support
 -   [examples](/examples) -- Rys code examples
+-   [extras](/extras) -- Extra rys utilities
+-   [logo](/logo) -- Rys logo
 -   [scripts](/scrips) -- Where scripts go
 -   [src](/src) -- Main source code
 -   [tests](/tests) -- Passing tests
