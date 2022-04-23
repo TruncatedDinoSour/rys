@@ -8,6 +8,20 @@
     <i>A reverse polish notation, stack based, concatinative, compiled programming language</i>
 </p>
 
+## Development setup
+
+Just run the [devsetup.sh shellscript](/scripts/devsetup.sh):
+
+```bash
+$ ./scripts/devsetup.sh
+```
+
+If you want debug output:
+
+```bash
+$ DEBUG=1 ./scripts/devsetup.sh
+```
+
 ## Requirements
 
 -   `ld` linker
@@ -24,6 +38,7 @@ want to get rid of it as fast as I can <3
 
 ## Project structure
 
+-   [completions](/completions) -- Shell completions
 -   [doc](/doc) -- The documentation
 -   [editor](/editor) -- Editor support
 -   [examples](/examples) -- Rys code examples
