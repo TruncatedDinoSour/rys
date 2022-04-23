@@ -9,6 +9,7 @@
 - [Math/arithmetic operators](/doc/md/MATH.md)
 - [Nop keyword](/doc/md/NOP.md)
 - [My notes](/doc/md/NOTES.md)
+- [Sleep instruction](/doc/md/SLEEP.md)
 - [Stacksz keyword](/doc/md/STACKSZ.md)
 - [Syntax definition](/doc/md/SYNTAX.md)
 - [Token types](/doc/md/TOKEN_TYPES.md)

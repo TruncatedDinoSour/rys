@@ -53,11 +53,13 @@ class AsmFeatures(Enum):
     EXIT = auto()
     WRITEFD = auto()
     WRITEFD_INT = auto()
+    SLEEP = auto()
 
 
 class InstructionType(Enum):
     INSTRUCTION_EXIT = auto()
     INSTRUCTION_WRITEFD = auto()
+    INSTRUCTION_SLEEP = auto()
 
 
 class RysType(Enum):
@@ -113,6 +115,17 @@ ASM_FEATURES: dict[AsmFeatures, list[str]] = {
         "    add rsp, 40",
         "    ret",
     ],
+    AsmFeatures.SLEEP: [
+        "struc timespec",
+        "   .tv_sec resq 1",
+        "   .tv_nsec resq 1",
+        "endstruc",
+        "_std_rys_sleep:",
+        "    mov rax, 35",
+        "    mov rsi, 0",
+        "    syscall",
+        "    ret",
+    ],
 }
 
 
@@ -153,7 +166,7 @@ def type_to_str(r_type: RysType) -> str:
 
 
 assert len(TokenType) == 12, "Unhandled token types in AST generation"
-assert len(InstructionType) == 2, "Unhandled instructions in AST generation"
+assert len(InstructionType) == 3, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
 assert len(ProceesableToken) == 1, "Unhandled processable token types in AST generation"
@@ -251,6 +264,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(
                             TokenType.INSTRUCTION, InstructionType.INSTRUCTION_WRITEFD
                         )
+                    elif token == "sleep":
+                        yield new_token(
+                            TokenType.INSTRUCTION, InstructionType.INSTRUCTION_SLEEP
+                        )
                     elif token == "cpy":
                         yield new_token(TokenType.CPY, None)
                     elif token == "drop":
@@ -291,10 +308,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 assert (
     len(TokenType) == 12
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
-assert len(InstructionType) == 2, "Unhandled instructions in assembly generation"
+assert len(InstructionType) == 3, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
 assert (
-    len(AsmFeatures) == 3
+    len(AsmFeatures) == 4
 ), "Unhandled asm features in generate_x86_64_nasm_assembly_linux()"
 assert len(OperatorType) == 6, "Unhandled operator types in assembly generation"
 assert (
@@ -315,13 +332,15 @@ def generate_x86_64_nasm_assembly_linux(
     -----------------------
     0 -- assembly
     1 -- data
+    2 -- bss
     """
 
     if do_msg:
         msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
     asm_stack: list[tuple[Any, RysType]] = stack or []
-    asm_data: list[Any] = []
+    asm_data: list[str] = []
+    asm_bss: list[str] = []
     asm_features: set[AsmFeatures] = features or set()
     start_lb: list[str] = []
 
@@ -509,8 +528,8 @@ def generate_x86_64_nasm_assembly_linux(
                 vprint("Adding EXIT feature to assembly features")
                 asm_features.add(AsmFeatures.EXIT)
             elif token.t_value == InstructionType.INSTRUCTION_WRITEFD:
-                writefd_fd, _, writefd_string, writefd_string_type = (
-                    *asm_stack.pop(),
+                writefd_fd, writefd_string, writefd_string_type = (
+                    asm_stack.pop()[0],
                     *asm_stack.pop(),
                 )
 
@@ -549,6 +568,29 @@ def generate_x86_64_nasm_assembly_linux(
 
                 vprint("Pushing the string length onto the stack")
                 asm_stack.append((len(str(writefd_string)), RysType.INT))
+            elif token.t_value == InstructionType.INSTRUCTION_SLEEP:
+                vprint("Generating sleep instruction assembly")
+
+                sleep_seconds, sleep_nanoseconds = (
+                    asm_stack.pop()[0],
+                    asm_stack.pop()[0],
+                )
+
+                vprint(f"nanosleep for {sleep_seconds}s and {sleep_nanoseconds}ns")
+                vprint("Adding call to _std_rys_sleep")
+
+                start_lb += [
+                    f"mov qword [nanosleep_st_{iname} + timespec.tv_sec], {sleep_seconds}",
+                    f"mov qword [nanosleep_st_{iname} + timespec.tv_nsec], {sleep_nanoseconds}",
+                    f"mov rdi, nanosleep_st_{iname}",
+                    "call _std_rys_sleep",
+                ]
+
+                vprint(f"Adding nanosleep_st_{iname} to .bss")
+                asm_bss.append(f"nanosleep_st_{iname}: resb timespec_size")
+
+                vprint("Adding SLEEP feature to assembly features")
+                asm_features.add(AsmFeatures.SLEEP)
             else:
                 tk_die(f"Unknown instruction: {token.t_value}", token)
         else:
@@ -590,6 +632,14 @@ def generate_x86_64_nasm_assembly_linux(
 
     for data in asm_data:
         yield data, 1
+
+    vprint("generating .bss")
+
+    if full and asm_bss:
+        yield "segment .bss", 2
+
+    for bss in asm_bss:
+        yield bss, 2
 
 
 def usage() -> int:
@@ -678,7 +728,7 @@ def parse_args() -> tuple[str, str]:
 
 
 assert len(TokenType) == 12, "Unhandled token types in type checking"
-assert len(InstructionType) == 2, "Unhandled instructions in type checking"
+assert len(InstructionType) == 3, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 assert len(OperatorType) == 6, "Unhandled operator types in type checking"
 assert len(ProceesableToken) == 1, "Unhandled processable token types in type checking"
@@ -752,6 +802,51 @@ def type_check_ast(
                     )
 
                 stack.append((RysType.INT, len(str(string))))
+            elif token.t_value == InstructionType.INSTRUCTION_SLEEP:
+                vprint("Type checking sleep instruction")
+
+                vprint("Checking stack size")
+                if len(stack) < 2:
+                    tk_die("Not enough arguments for sleep", token)
+
+                vprint("Checking sleep argument types")
+                (
+                    sleep_seconds_type,
+                    sleep_seconds,
+                    sleep_nanoseconds_type,
+                    sleep_nanoseconds,
+                ) = (
+                    *stack.pop(),
+                    *stack.pop(),
+                )
+
+                vprint("Checking seconds type...")
+                if sleep_seconds_type != RysType.INT:
+                    tk_die(
+                        f"sleep expected {type_to_str(RysType.INT)} for seconds, but got {type_to_str(sleep_seconds_type)}",
+                        token,
+                    )
+
+                vprint("Checking seconds range...")
+                if sleep_seconds > 2147483647 or sleep_seconds < 0:
+                    tk_die(
+                        "sleep expected seconds to be in the range of 0 and 2147483647",
+                        token,
+                    )
+
+                vprint("Checking nanoseconds type...")
+                if sleep_nanoseconds_type != RysType.INT:
+                    tk_die(
+                        f"sleep expected {type_to_str(RysType.INT)} for nanoseconds, but got {type_to_str(sleep_nanoseconds_type)}",
+                        token,
+                    )
+
+                vprint("Checking nanoseconds range...")
+                if sleep_nanoseconds > 999999999 or sleep_nanoseconds < 0:
+                    tk_die(
+                        "sleep expected nanoseconds to be in the range of 0 and 999999999",
+                        token,
+                    )
             else:
                 tk_die(
                     f"Unknown instruction: {token.t_value}",

@@ -1,0 +1,11 @@
+-- Prints hello letter by letter every
+-- second
+
+"h" 1 writefd clear 0 1 sleep
+"e" 1 writefd clear 0 1 sleep
+"l" 1 writefd clear 0 1 sleep
+"l" 1 writefd clear 0 1 sleep
+"o" 1 writefd clear 0 1 sleep
+
+"\n" 1 writefd clear
+0 exit

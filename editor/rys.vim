@@ -16,15 +16,15 @@ endif
 
 
 " TODOs
-syntax keyword rysTodos TODO XXX FIXME NOTE
+syntax keyword rysTodo TODO XXX FIXME NOTE
 
 
 " Language keywords
-syntax keyword rysKeywords drop assembly charz stacksz cpy nop clear
+syntax keyword rysKeyword drop assembly charz stacksz cpy nop clear
 
 
-" Language functions
-syntax keyword rysFunctions exit writefd
+" Language Instructions
+syntax keyword rysInstruction exit writefd sleep
 
 
 " Escapes
@@ -41,7 +41,7 @@ syntax match rysNumber "\<\d*\>"
 
 
 " Comments
-syntax region rysCommentLine start="--" end="$" contains=rysTodos
+syntax region rysCommentLine start="--" end="$" contains=rysTodo
 
 
 " Strings
@@ -57,9 +57,9 @@ syntax keyword rysSemikw include
 
 
 " Set highlights
-highlight default link rysTodos Todo
-highlight default link rysKeywords Keyword
-highlight default link rysFunctions Function
+highlight default link rysTodo Todo
+highlight default link rysKeyword Keyword
+highlight default link rysInstruction Function
 highlight default link rysCommentLine Comment
 highlight default link rysString String
 highlight default link rysEscape Special
