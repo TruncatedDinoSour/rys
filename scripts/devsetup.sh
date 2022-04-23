@@ -4,7 +4,8 @@
 set -e
 
 DEV_PKGS=('binutils (for `strip` and `ld`)'
-    'nasm (for assembly compilation)')
+    'nasm (for assembly compilation)'
+    'rlwrap (for rysi readline support)')
 INIT_REQUIRE=(python3 pip ln pwd)
 SYM_DIRS=(extras src)
 MESSAGES=()
@@ -59,8 +60,6 @@ main() {
     pip install --quiet --user -r requirements.txt
     echo 'done'
 
-    MESSAGES+=("Please intall these packages: ${DEV_PKGS[*]}")
-
     # ---
 
     echo 'Setup finished!'
@@ -75,6 +74,15 @@ main() {
             echo " * $message"
         done
     fi
+
+    # ---
+
+    echo
+    echo ' ** Extra packages:'
+
+    for package in "${DEV_PKGS[@]}"; do
+        echo " * $package"
+    done
 }
 
 main "$@"
