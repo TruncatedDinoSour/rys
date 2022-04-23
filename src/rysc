@@ -1386,12 +1386,12 @@ def main() -> int:
     ld_flags += f" {os.environ.get('RYS_USER_LD_FLAGS') or ''}"
     asm_flags += f" {os.environ.get('RYS_USER_ASM_FLAGS') or ''}"
 
-    msg(f"Writing assembly to {asm_name}...", "INFO")
+    msg(f"Writing assembly to {asm_name!r}...", "INFO")
     with open(asm_name, "w") as rys_asm:
         for line, _ in asm:
             rys_asm.write((line if "debug_flags" in RYS_ARGS else line.strip()) + "\n")
 
-    msg(f"Compiling {asm_name}...", "INFO")
+    msg(f"Compiling {asm_name!r}...", "INFO")
     vprint(f"{asmc} {asm_flags}")
     if os.system(f"{asmc} {asm_flags}"):
         return msg("Assembler failed")
@@ -1401,7 +1401,7 @@ def main() -> int:
         return msg("Linker failed")
 
     if "strip" in RYS_ARGS:
-        msg(f"Stripping {bin_name}...", "INFO")
+        msg(f"Stripping {bin_name!r}...", "INFO")
         if os.system(
             f"strip --strip-all \
                     -N __gentoo_check_ldflags__ -R .comment \
