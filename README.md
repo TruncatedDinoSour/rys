@@ -48,6 +48,15 @@ want to get rid of it as fast as I can <3
 -   [src](/src) -- Main source code
 -   [tests](/tests) -- Passing tests
 -   [tests_fail](/tests_fail) -- Purposely failing tests
+-   [.editorconfig](/.editorconfig) -- [Editdorconfig](https://editorconfig.org/) config
+-   [.gitignore](/.gitignore) -- Git cli ignore list
+-   [.shellcheckrc](/.shellcheckrc) -- Shellcheck config
+-   [CONTRIBUTING.md](CONTRIBUTING.md) -- Contributing rules
+-   [LICENSE](/LICENSE) -- Project license
+-   [README.md](/README.md) -- Project readme/index file
+-   [TODO.md](/TODO.md) -- TODOs/accomplishments I want to finish
+-   [requirements.txt](/requirements.txt) -- Python requirements
+-   [tox.ini](/tox.ini) -- Python tox config
 
 ## Examples
 
