@@ -524,7 +524,10 @@ def generate_x86_64_nasm_assembly_linux(
 
             if token.t_value == InstructionType.INSTRUCTION_EXIT:
                 vprint("Adding a call to _std_rys_exit in _start label")
-                start_lb += [f"mov rdi, {asm_stack.pop()[0]}", "call _std_rys_exit"]
+                start_lb += [
+                    f"    mov rdi, {asm_stack.pop()[0]}",
+                    r"    call _std_rys_exit",
+                ]
 
                 vprint("Adding EXIT feature to assembly features")
                 asm_features.add(AsmFeatures.EXIT)
