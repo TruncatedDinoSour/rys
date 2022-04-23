@@ -20,8 +20,8 @@ Example of writefd:
 `data` can also be a number:
 
 ```lua
-1337 1 writeout  -- Write "Hello world" to STDOUT
-1 drop                    -- Drops bytes written
+1337 1 writeout  -- Write "1337" to STDOUT
+1 drop           -- Drops bytes written
 ```
 
 It will get converted to a string...
