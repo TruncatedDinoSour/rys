@@ -1,29 +1,32 @@
 #!/usr/bin/env sh
 
+set -e
+
+cnt() {
+    printf '****** Press enter to continue ******'
+    read -r
+}
+
 main() {
     if ! ./scripts/tests.sh "$@"; then
         echo '!! NORMAL TESTS DID NOT PASS'
         exit 1
     fi
 
-    printf '****** Press enter to start failing tests testing ******'
-    read -r
+    cnt
 
     export NOBREAK=1 TESTDIR=tests_fail
-
     if ./scripts/tests.sh "$@"; then
         echo '!! NOT PASSING TESTS DID NOT PASS'
         exit 2
     fi
 
-    printf '****** Press enter to start example testing ******'
-    read -r
+    cnt
 
     export NOBREAK='' TESTDIR=examples
-
     if ! ./scripts/tests.sh "$@"; then
         echo '!! EXAMPLES DID NOT PASS'
-        exit 1
+        exit 3
     fi
 }
 
