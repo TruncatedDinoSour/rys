@@ -38,7 +38,7 @@ main() {
         ln -s "$(pwd)/$file" "$sl"
     done <<<"$(find "${SYM_DIRS[@]}" -type f)"
 
-    MESSAGES+=('Make sure /usr/local/bin is in your PATH (add this to your bashrc or whatever): export PATH="$PATH:/usr/local/bin"')
+    MESSAGES+=(f"Make sure $BINDIR is in your PATH (add this to your bashrc or whatever): export PATH=\"\$PATH:$BINDIR\"")
 
     echo 'done'
 
