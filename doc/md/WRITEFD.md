@@ -13,14 +13,14 @@ And it returns the string length
 Example of writefd:
 
 ```lua
-"Hello world" 1 writeout  -- Write "Hello world" to STDOUT
+"Hello world" 1 writefd   -- Write "Hello world" to STDOUT
 1 drop                    -- Drops bytes written
 ```
 
 `data` can also be a number:
 
 ```lua
-1337 1 writeout  -- Write "1337" to STDOUT
+1337 1 writefd   -- Write "1337" to STDOUT
 1 drop           -- Drops bytes written
 ```
 
