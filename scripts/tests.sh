@@ -17,8 +17,8 @@ main() {
         echo "$rys_test"
 
         echo "TEST $rys_test"
-        ../src/rysc "$rys_test" -linux-elf64-x86_64-nasm "$@" || export ohno=1
-        ./"$(basename "$rys_test" | cut -d '.' -f 1)" || export ohno=1
+        time ../src/rysc "$rys_test" -linux-elf64-x86_64-nasm "$@" || export ohno=1
+        time ./"$(basename "$rys_test" | cut -d '.' -f 1)" || export ohno=1
         echo
 
         if [ "$ohno" ]; then
