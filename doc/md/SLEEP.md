@@ -6,8 +6,8 @@ via `nanosleep` syscall
 
 `sleep` instruction takes two arguments:
 
--   Seconds: Integer between 0 and 2147483647, the amount of seconds to sleep for
 -   Nanoseconds: Integer between 0 and 999999999, The amount of nanoseconds to sleep for
+-   Seconds: Integer between 0 and 2147483647, the amount of seconds to sleep for
 
 And it returns nothing
 

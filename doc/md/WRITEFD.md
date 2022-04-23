@@ -5,8 +5,8 @@ which can write textual data to a specified file descriptor number
 
 `writefd` instruction takes two arguments:
 
--   FD: File descriptor number (for example `2` for STDERROR)
 -   Data: text to write to that file descriptor
+-   FD: File descriptor number (for example `2` for STDERROR)
 
 And it returns the string length
 
