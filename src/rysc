@@ -74,7 +74,7 @@ class Token:
     t_value: Any
 
 
-ASM_FEATURES: dict[AsmFeatures, list[str]] = {
+NASM_ASM_FEATURES: dict[AsmFeatures, list[str]] = {
     AsmFeatures.EXIT: ["_std_rys_exit:", "    mov rax, 60", "    syscall", "    ret"],
     AsmFeatures.WRITEFD: [
         "_std_rys_writefd:",
@@ -122,6 +122,7 @@ ASM_FEATURES: dict[AsmFeatures, list[str]] = {
         "endstruc",
         "_std_rys_sleep:",
         "    mov rax, 35",
+        "    mov rdi, _g_nanosleep_st",
         "    mov rsi, 0",
         "    syscall",
         "    ret",
@@ -580,14 +581,14 @@ def generate_x86_64_nasm_assembly_linux(
                 vprint("Adding call to _std_rys_sleep")
 
                 start_lb += [
-                    f"mov qword [nanosleep_st_{iname} + timespec.tv_sec], {sleep_seconds}",
-                    f"mov qword [nanosleep_st_{iname} + timespec.tv_nsec], {sleep_nanoseconds}",
-                    f"mov rdi, nanosleep_st_{iname}",
+                    f"mov qword [_g_nanosleep_st + timespec.tv_sec], {sleep_seconds}",
+                    f"mov qword [_g_nanosleep_st + timespec.tv_nsec], {sleep_nanoseconds}",
                     "call _std_rys_sleep",
                 ]
 
-                vprint(f"Adding nanosleep_st_{iname} to .bss")
-                asm_bss.append(f"nanosleep_st_{iname}: resb timespec_size")
+                if AsmFeatures.SLEEP not in asm_features:
+                    vprint("Adding _g_nanosleep_st to .bss")
+                    asm_bss.append("_g_nanosleep_st: resb timespec_size")
 
                 vprint("Adding SLEEP feature to assembly features")
                 asm_features.add(AsmFeatures.SLEEP)
@@ -608,7 +609,7 @@ def generate_x86_64_nasm_assembly_linux(
     vprint("Generating features...")
 
     for feature in asm_features:
-        for line in ASM_FEATURES[feature]:
+        for line in NASM_ASM_FEATURES[feature]:
             yield line, 0
 
     vprint("Generating _start")
