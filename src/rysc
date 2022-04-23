@@ -581,9 +581,9 @@ def generate_x86_64_nasm_assembly_linux(
                 vprint("Adding call to _std_rys_sleep")
 
                 start_lb += [
-                    f"mov qword [_g_nanosleep_st + timespec.tv_sec], {sleep_seconds}",
-                    f"mov qword [_g_nanosleep_st + timespec.tv_nsec], {sleep_nanoseconds}",
-                    "call _std_rys_sleep",
+                    f"    mov qword [_g_nanosleep_st + timespec.tv_sec], {sleep_seconds}",
+                    f"    mov qword [_g_nanosleep_st + timespec.tv_nsec], {sleep_nanoseconds}",
+                    r"    call _std_rys_sleep",
                 ]
 
                 if AsmFeatures.SLEEP not in asm_features:
