@@ -5,6 +5,7 @@ set -e
 
 DEV_PKGS=('binutils (for `strip` and `ld`)'
     'nasm (for assembly compilation)'
+    'vim (for editor support)'
     'rlwrap (for rysi readline support)')
 INIT_REQUIRE=(python3 pip ln pwd)
 SYM_DIRS=(extras src)
@@ -51,6 +52,18 @@ main() {
 
     [ -h "$sl" ] && unlink "$sl"
     ln -s "$(pwd)/completions/rysc.bash" "$sl"
+
+    echo 'done'
+
+    # ---
+
+    printf 'Setting up vim... '
+
+    mkdir -p -- "$HOME/.vim/syntax"
+    sl="$HOME/.vim/syntax/rys.vim"
+
+    [ -h "$sl" ] && unlink "$sl"
+    ln -s "$(pwd)/editor/rys.vim" "$sl"
 
     echo 'done'
 
