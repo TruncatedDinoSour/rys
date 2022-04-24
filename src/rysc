@@ -208,7 +208,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
             for cidx, token in enumerate(line.split(" "), 1):
                 config["column"] = cidx
 
-                token = token.strip() or " "
+                token = token.rstrip()
 
                 # String parsing sux
                 # TODO: better parsing like wtf does this even fucking
@@ -218,7 +218,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
                 if "in.literal" in token_ctx:
                     if not token.endswith('"') or token.endswith('\\"'):
-                        tmp_stack.append(token)
+                        tmp_stack.append(" " + token)
                         continue
                 elif token == '"' and "in.literal" not in token_ctx:
                     token_ctx.add("in.literal")
@@ -233,9 +233,9 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                     yield new_token(TokenType.PUSH_STR, token[1:-1])
                     continue
                 elif token.endswith('"') and not token.endswith('\\"'):
-                    tmp_stack.append(token.removesuffix('"'))
+                    tmp_stack.append(" " + token.removesuffix('"'))
 
-                    full_str: str = " ".join(tmp_stack)
+                    full_str: str = "".join(tmp_stack)
 
                     yield new_token(TokenType.PUSH_STR, full_str)
 

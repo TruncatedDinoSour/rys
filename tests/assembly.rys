@@ -1,5 +1,5 @@
-"   syscall"
-"   mov rdi, 0"
-"   mov rax, 60" 3 assembly
+"    syscall"
+"    mov rdi, 0"
+"    mov rax, 60" 3 assembly
 
 "Assembly failed!\n" 1 writefd 1 drop 1 exit
