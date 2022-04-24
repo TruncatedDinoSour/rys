@@ -205,8 +205,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
             config["line"] = lidx
 
-            for cidx, token in enumerate(line.split(), 1):
+            for cidx, token in enumerate(line.split(" "), 1):
                 config["column"] = cidx
+
+                token = token.strip() or " "
 
                 # String parsing sux
                 # TODO: better parsing like wtf does this even fucking
@@ -248,6 +250,10 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                 if token.startswith("--"):
                     # Ignore comments and everything after in the same line
                     break
+
+                if not token.strip():
+                    # Ignore empty tokens
+                    continue
 
                 if token.isnumeric():
                     try:
