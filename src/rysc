@@ -622,7 +622,7 @@ def generate_x86_64_nasm_assembly_linux(
         for line in NASM_ASM_FEATURES[feature]:
             yield line, 0
 
-    vprint("Generating _start")
+    vprint("Looking for code")
 
     if not start_lb:
         msg("No actual code found")
@@ -633,23 +633,25 @@ def generate_x86_64_nasm_assembly_linux(
         yield "global _start", 0
         yield "_start:", 0
 
+    vprint("Generating _start")
+
     for line in start_lb:
         yield line, 0
-
-    vprint("generating .rodata")
 
     if full and asm_rodata:
         vprint("Generating .rodata segment header")
         yield "segment .rodata", 3
 
+    vprint("generating .rodata")
+
     for rodata in asm_rodata:
         yield rodata, 3
-
-    vprint("generating .bss")
 
     if full and asm_bss:
         vprint("Generating .bss segment header")
         yield "segment .bss", 2
+
+    vprint("generating .bss")
 
     for bss in asm_bss:
         yield bss, 2
