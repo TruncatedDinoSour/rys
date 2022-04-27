@@ -338,7 +338,7 @@ def generate_x86_64_nasm_assembly_linux(
     API ([1] of return value)
     -----------------------
     0 -- assembly
-    1 -- data
+    (reserved) 1 -- data
     2 -- bss
     3 -- read-only data
     """
@@ -347,7 +347,6 @@ def generate_x86_64_nasm_assembly_linux(
         msg("Generating nasm x86_64 linux assembly from AST...", "INFO")
 
     asm_stack: list[tuple[Any, RysType]] = stack or []
-    asm_data: list[str] = []
     asm_rodata: list[str] = []
     asm_bss: list[str] = []
     asm_features: set[AsmFeatures] = features or set()
@@ -645,15 +644,6 @@ def generate_x86_64_nasm_assembly_linux(
 
     for rodata in asm_rodata:
         yield rodata, 3
-
-    vprint("generating .data")
-
-    if full and asm_data:
-        vprint("Generating .data segment header")
-        yield "segment .data", 1
-
-    for data in asm_data:
-        yield data, 1
 
     vprint("generating .bss")
 
