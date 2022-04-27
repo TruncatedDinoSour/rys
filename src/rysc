@@ -335,11 +335,12 @@ def generate_x86_64_nasm_assembly_linux(
     do_msg: bool = True,
 ) -> Generator[tuple[str, int], None, None]:
     """
-    API (index 1 of return)
+    API ([1] of return value)
     -----------------------
     0 -- assembly
     1 -- data
     2 -- bss
+    3 -- read-only data
     """
 
     if do_msg:
@@ -347,6 +348,7 @@ def generate_x86_64_nasm_assembly_linux(
 
     asm_stack: list[tuple[Any, RysType]] = stack or []
     asm_data: list[str] = []
+    asm_rodata: list[str] = []
     asm_bss: list[str] = []
     asm_features: set[AsmFeatures] = features or set()
     start_lb: list[str] = []
@@ -557,7 +559,7 @@ def generate_x86_64_nasm_assembly_linux(
                         map(lambda char: str(ord(char)), writefd_string)
                     )
 
-                    asm_data += [
+                    asm_rodata += [
                         f"str{iname}: db {rys_str if rys_str else 0}",
                         f"str_len{iname}: equ $-str{iname}",
                     ]
@@ -635,9 +637,19 @@ def generate_x86_64_nasm_assembly_linux(
     for line in start_lb:
         yield line, 0
 
+    vprint("generating .rodata")
+
+    if full and asm_rodata:
+        vprint("Generating .rodata segment header")
+        yield "segment .rodata", 3
+
+    for rodata in asm_rodata:
+        yield rodata, 3
+
     vprint("generating .data")
 
     if full and asm_data:
+        vprint("Generating .data segment header")
         yield "segment .data", 1
 
     for data in asm_data:
@@ -646,6 +658,7 @@ def generate_x86_64_nasm_assembly_linux(
     vprint("generating .bss")
 
     if full and asm_bss:
+        vprint("Generating .bss segment header")
         yield "segment .bss", 2
 
     for bss in asm_bss:
