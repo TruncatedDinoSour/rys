@@ -54,6 +54,18 @@ main() {
 
         echo 'done'
     fi
+
+    # ---
+
+    if command -v pip >/dev/null; then
+        printf 'Uninstalling python requirements... '
+        pip uninstall -r requirements.txt
+        echo 'done'
+    fi
+
+    # ---
+
+    echo 'Dev setup reverted!'
 }
 
 main "$@"

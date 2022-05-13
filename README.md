@@ -10,13 +10,12 @@
 
 ## Development setup
 
-Just run the [devsetup.sh shellscript](/scripts/devsetup.sh):
+Just run the [devsetup.sh shell script](/scripts/devsetup.sh),
+to remove (most of) the effects of development setup script run
+the [undev.sh shell script](/scripts/undev.sh)
 
-```bash
-$ ./scripts/devsetup.sh
-```
-
-If you want debug output:
+If you want debug output just set the `DEBUG` environment
+variable, for example:
 
 ```bash
 $ DEBUG=1 ./scripts/devsetup.sh
@@ -26,7 +25,7 @@ $ DEBUG=1 ./scripts/devsetup.sh
 
 -   `ld` linker
 -   `nasm` assembly compiler
--   `python3.8` and up
+-   `python3.9` and up
 -   Python `typing`
 -   Linux
 
