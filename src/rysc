@@ -152,7 +152,7 @@ def msg(message: str, header: str = "ERROR", pad: str = "  ") -> int:
                         )[1]
                         - len(header)
                         - len(pad) * 2,
-                        256,
+                        128,
                     )
                 )
                 + "s}{header}\n"
