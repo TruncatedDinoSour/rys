@@ -1,22 +1,11 @@
 #!/usr/bin/env bash
 
+. ./scripts/config.sh
+
 [ "$DEBUG" ] && set -x
 set -e
 
-DEV_PKGS=('binutils (for `strip` and `ld`)'
-    'nasm (for assembly compilation)'
-    'vim (for editor support)'
-    'rlwrap (for rysi readline support)')
-INIT_REQUIRE=(python3 pip ln pwd)
-SYM_DIRS=(extras src)
 MESSAGES=()
-BINDIR="$HOME/.local/bin/"
-COMPDIR="$HOME/.local/share/bash-completion/completions"
-
-use() {
-    command -v -- "$1" >/dev/null ||
-        (echo "please install: $1" >&2 && exit 1)
-}
 
 main() {
     printf 'Checking for requirements... '
@@ -39,7 +28,7 @@ main() {
         ln -s "$(pwd)/$file" "$sl"
     done <<<"$(find "${SYM_DIRS[@]}" -type f)"
 
-    MESSAGES+=(f"Make sure $BINDIR is in your PATH (add this to your bashrc or whatever): export PATH=\"\$PATH:$BINDIR\"")
+    MESSAGES+=("Make sure $BINDIR is in your PATH (add this to your bashrc or whatever): export PATH=\"\$PATH:$BINDIR\"")
 
     echo 'done'
 
@@ -57,21 +46,39 @@ main() {
 
     # ---
 
-    printf 'Setting up vim... '
+    if command -v vim >/dev/null; then
+        printf 'Setting up vim... '
 
-    mkdir -p -- "$HOME/.vim/syntax"
-    sl="$HOME/.vim/syntax/rys.vim"
+        # Syntax file
 
-    [ -h "$sl" ] && unlink "$sl"
-    ln -s "$(pwd)/editor/rys.vim" "$sl"
+        mkdir -p -- "$VIMDIR/syntax"
+        sl="$VIMDIR/syntax/rys.vim"
 
-    echo 'done'
+        [ -h "$sl" ] && unlink "$sl"
+        ln -s "$(pwd)/editor/rys.vim" "$sl"
+
+        # File detection
+
+        mkdir -p -- "$VIMDIR/ftdetect"
+        sl="$VIMDIR/ftdetect/rys.vim"
+
+        [ -h "$sl" ] && unlink "$sl"
+        ln -s "$(pwd)/editor/rys.ftp.vim" "$sl"
+
+        echo 'done'
+
+        MESSAGES+=("You might need to add this to vimrc if syntax does not work: autocmd BufRead,BufNewFile *.rys set filetype=rys")
+    fi
 
     # ---
 
-    printf 'Installing python requirements... '
-    pip install --quiet --user -r requirements.txt
-    echo 'done'
+    if command -v pip >/dev/null; then
+        printf 'Installing python requirements... '
+        pip install --quiet --user -r requirements.txt
+        echo 'done'
+    else
+        MESSAGES+=("Please install all python requirements from requirements.txt file")
+    fi
 
     # ---
 
