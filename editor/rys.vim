@@ -20,7 +20,7 @@ syntax keyword rysTodo TODO XXX FIXME NOTE
 
 
 " Language keywords
-syntax keyword rysKeyword drop assembly charz stacksz cpy nop clear
+syntax keyword rysKeyword drop assembly charz stacksz cpy nop clear sassert
 
 
 " Language Instructions

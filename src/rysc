@@ -34,6 +34,7 @@ class TokenType(Enum):
     NOP = auto()
     CLEAR = auto()
     PROCCESSABLE = auto()
+    SASSERT = auto()
 
 
 class ProceesableToken(Enum):
@@ -166,7 +167,7 @@ def type_to_str(r_type: RysType) -> str:
     return type_name
 
 
-assert len(TokenType) == 12, "Unhandled token types in AST generation"
+assert len(TokenType) == 13, "Unhandled token types in AST generation"
 assert len(InstructionType) == 3, "Unhandled instructions in AST generation"
 assert len(RysType) == 2, "Unhandled types in AST generation"
 assert len(OperatorType) == 6, "Unhandled operator types in AST generation"
@@ -305,6 +306,8 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
                         yield new_token(
                             TokenType.PROCCESSABLE, ProceesableToken.PROC_INCLUDE
                         )
+                    elif token == "sassert":
+                        yield new_token(TokenType.SASSERT, None)
                     else:
                         die(f"Unknown token: {token!r}")
 
@@ -313,7 +316,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
 
 assert (
-    len(TokenType) == 12
+    len(TokenType) == 13
 ), "Unhandled token types in nasm x86_64 linux assembly generation"
 assert len(InstructionType) == 3, "Unhandled instructions in assembly generation"
 assert len(RysType) == 2, "Unhandled types in assembly generation"
@@ -526,6 +529,9 @@ def generate_x86_64_nasm_assembly_linux(
                 "This is most likely a compiler bug, processable token detected in generate_x86_64_nasm_assembly_linux()"
             )
             tk_die(f"This token should be handled in preprocessing: {token}", token)
+        elif token.t_type == TokenType.SASSERT:
+            vprint("Passing assembly generation for static assert")
+            pass
         elif token.t_type == TokenType.INSTRUCTION:
             vprint("Generating assembly for instruction")
 
@@ -742,7 +748,7 @@ def parse_args() -> tuple[str, str]:
     return (filename, output or os.path.splitext(os.path.basename(filename))[0])
 
 
-assert len(TokenType) == 12, "Unhandled token types in type checking"
+assert len(TokenType) == 13, "Unhandled token types in type checking"
 assert len(InstructionType) == 3, "Unhandled instructions in type checking"
 assert len(RysType) == 2, "Unhandled types in type checking"
 assert len(OperatorType) == 6, "Unhandled operator types in type checking"
@@ -1265,6 +1271,23 @@ def type_check_ast(
 
                 vprint(f"Gerating AST and typechecking {include_file!r}")
                 type_check_ast(rys_to_ast(include_file), False, stack)
+        elif token.t_type == TokenType.SASSERT:
+            vprint("Type checking static assert")
+
+            if len(stack) < 1:
+                tk_die(
+                    "Not enough arguments for static assert",
+                    token,
+                )
+
+            sassert_val = stack.pop()
+            if not sassert_val[1]:
+                tk_die(
+                    f"Static assertsion failed with falsy value {sassert_val[1]!r}",
+                    token,
+                )
+
+            stack.append(sassert_val)
 
         yield token
 
