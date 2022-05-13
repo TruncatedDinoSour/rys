@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """rys"""
 
+import fcntl
 import os
+import struct
 import sys
+import termios
 import warnings
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -131,18 +134,34 @@ NASM_ASM_FEATURES: dict[AsmFeatures, list[str]] = {
 }
 
 
-def msg(msg: str, header: str = "ERROR") -> int:
+def msg(msg: str, header: str = "ERROR", pad: str = "  ") -> int:
     """Print message and return error exit code"""
 
     if "quiet" not in RYS_ARGS:
-        sys.stderr.write(f" ** {header}{': ' if msg[0] != ':' else ''}{msg}\n")
+        sys.stderr.write(
+            (
+                pad
+                + "{msg:"
+                + str(
+                    struct.unpack(
+                        "HHHH",
+                        fcntl.ioctl(
+                            0, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0)
+                        ),
+                    )[1]
+                    - len(header)
+                    - len(pad) * 2
+                )
+                + "s}{header}\n"
+            ).format(msg=msg, header=header)
+        )
 
     return EXIT_ERR
 
 
 def tk_die(message: str, token: Token) -> None:
     sys.exit(
-        msg(f":{token.t_pos[2]}:{token.t_pos[0] or 1}:{token.t_pos[1] or 1}: {message}")
+        msg(f"{token.t_pos[2]}:{token.t_pos[0] or 1}:{token.t_pos[1] or 1}: {message}")
     )
 
 
@@ -193,7 +212,7 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
     def die(message: str) -> None:
         sys.exit(
             msg(
-                f":{file_path}:{config.get('line') or 1}:{config.get('column') or 1}: {message}"
+                f"{file_path}:{config.get('line') or 1}:{config.get('column') or 1}: {message}"
             )
         )
 
