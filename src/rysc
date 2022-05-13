@@ -143,14 +143,17 @@ def msg(msg: str, header: str = "ERROR", pad: str = "  ") -> int:
                 pad
                 + "{msg:"
                 + str(
-                    struct.unpack(
-                        "HHHH",
-                        fcntl.ioctl(
-                            0, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0)
-                        ),
-                    )[1]
-                    - len(header)
-                    - len(pad) * 2
+                    min(
+                        struct.unpack(
+                            "HHHH",
+                            fcntl.ioctl(
+                                0, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0)
+                            ),
+                        )[1]
+                        - len(header)
+                        - len(pad) * 2,
+                        128,
+                    )
                 )
                 + "s}{header}\n"
             ).format(msg=msg, header=header)
