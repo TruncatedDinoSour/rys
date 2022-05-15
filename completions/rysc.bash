@@ -9,7 +9,7 @@ _rysc() {
             COMPREPLY=($(compgen -W "-help -debug -release\
                 -linux-elf64-x86_64-nasm -run --\
                 -o -strip -quiet -verbose\
-                -typecheck -no-typecheck" -- "$cur"))
+                -typecheck -no-typecheck -size" -- "$cur"))
         fi
     done
 } && complete -F _rysc -o bashdefault -o default rysc
