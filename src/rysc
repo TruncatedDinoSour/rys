@@ -213,14 +213,18 @@ def rys_to_ast(file_path: str) -> Generator[Token, None, None]:
 
         return Token(
             token_type,
-            (config.get("line") or 1, config.get("column") or 1, file_path),
+            (
+                config.get("line", 1),
+                config.get("column", 1),
+                file_path,
+            ),
             value,
         )
 
     def die(message: str) -> None:
         sys.exit(
             msg(
-                f"{file_path}:{config.get('line') or 1}:{config.get('column') or 1}: {message}"
+                f"{file_path}:{config.get('line', 1)}:{config.get('column', 1)}: {message}"
             )
         )
 
@@ -707,6 +711,7 @@ def usage() -> int:
         f"    -verbose                    -- [{'on' if '-quiet' in sys.argv else 'off'}] print debug/verbose information",
         f"    -typecheck                  -- [{'on' if '-typecheck' in sys.argv else 'off'}] only typecheck, don't compile",
         f"    -no-typecheck               -- [{'on' if '-no-typecheck' in sys.argv else 'off'}] never typecheck",
+        f"    -size                       -- [{'on' if '-size' in sys.argv else 'off'}] optimise for size and memory usage",
         "",
         " ENV",
         "    RYS_LD_FLAGS                -- all linker flags",
@@ -766,6 +771,8 @@ def parse_args() -> tuple[str, str]:
             RYS_ARGS.add("typing")
         elif arg == "-no-typecheck":
             RYS_ARGS.add("no-typing")
+        elif arg == "-size":
+            RYS_ARGS.add("size")
         elif os.path.exists(arg):
             continue
         else:
@@ -1417,21 +1424,35 @@ def main() -> int:
         vprint("Added default assembly and linker flags")
 
         asm_flags = f"-w+error -felf64 '{asm_name}' -o '{obj_name}' "
-        ld_flags = f"--require-defined=_start -nostdlib -o '{bin_name}' '{obj_name}' "
+        ld_flags = f"--require-defined=_start -nostdlib \
+                --check-sections -z relro -z now -z noexecstack \
+                -z nocommon -z defs -z nodefaultlib -z nodump \
+                -z nodlopen -z nostart-stop-gc -z start-stop-visibility=hidden \
+                -z unique-symbol -static --fatal-warnings \
+                -o '{bin_name}' '{obj_name}' "
 
         if "debug_flags" in RYS_ARGS:
             vprint("Adding debug linker and assembly flags")
 
-            ld_flags += (
-                "-O0 --compress-debug-sections=none --eh-frame-hdr --gc-sections"
-            )
+            ld_flags += "-O0 --compress-debug-sections=none --eh-frame-hdr \
+                        --gc-sections --demangle "
             asm_flags += "-g -gdwarf -O0"
 
         if "release_flags" in RYS_ARGS:
             vprint("Adding release/optimisation linker and assembly flags")
 
-            ld_flags += "-O3 -X -s -S"
+            ld_flags += "-O3 -s -S --strip-discarded --no-demangle -n \
+                    --no-omagic --orphan-handling=discard \
+                    --no-ctf-variables --no-gc-sections \
+                    --warn-constructors --warn-multiple-gp \
+                    --warn-textrel --warn-alternate-em --warn-unresolved-symbols \
+                    --enable-non-contiguous-regions-warnings \
+                    --warn-poison-system-directories "
             asm_flags += "-O3 -s"
+
+        if "size" in RYS_ARGS:
+            vprint("Adding size linker flags")
+            ld_flags += "--no-keep-memory --reduce-memory-overheads "
     else:
         msg("No format specified")
         return usage()
@@ -1464,16 +1485,7 @@ def main() -> int:
     if "strip" in RYS_ARGS:
         minfo(f"Stripping {bin_name!r}...")
         if os.system(
-            f"strip --strip-all \
-                    -N __gentoo_check_ldflags__ -R .comment \
-                    -R .GCC.command.line --remove-section=.eh_frame \
-                    --remove-section=.eh_frame_hdr --remove-section=.gnu.hash \
-                    --remove-section=.eh_frame_hdr --remove-section=.eh_frame_ptr \
-                    --remove-section=.note.gnu.gold-version \
-                    --remove-section=.note.gnu.build-id \
-                    --remove-section=.note.ABI-tag --remove-section=.note \
-                    --remove-section=.gnu.version --remove-section=.comment \
-                    --merge-notes --strip-debug --strip-unneeded -x \
+            f"strip -M -N '.*' -s \
                     {'--verbose' if 'verbose' in RYS_ARGS else ''} -- '{bin_name}'"
         ):
             return msg("Stripper failed")
