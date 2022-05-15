@@ -6,7 +6,7 @@ main() {
     rm -f doc/README.md
 
     {
-        echo "# Documentation index"
+        echo "# Rys documentation index"
 
         for file in doc/md/*; do
             echo "- [$(head -n 1 "$file" | sed 's/^# //')](/$file)"
