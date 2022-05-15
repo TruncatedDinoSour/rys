@@ -1446,9 +1446,8 @@ def main() -> int:
                     --no-ctf-variables --no-gc-sections \
                     --warn-constructors --warn-multiple-gp \
                     --warn-textrel --warn-alternate-em --warn-unresolved-symbols \
-                    --enable-non-contiguous-regions-warnings \
-                    --warn-poison-system-directories "
-            asm_flags += "-O3 -s"
+                    --enable-non-contiguous-regions-warnings "
+            asm_flags += "-O3 -s "
 
         if "size" in RYS_ARGS:
             vprint("Adding size linker flags")
